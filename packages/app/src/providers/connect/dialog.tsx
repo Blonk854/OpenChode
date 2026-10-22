@@ -8,7 +8,9 @@ import { Loader } from "@opencode/ui/loader"
 import { Spinner } from "@opencode/ui/spinner"
 import { TextField } from "@opencode/ui/text-field"
 import { DialogBody, DialogHeader, DialogTitle, Dialog } from "@opencode/ui/dialog"
+import { Select } from "@opencode/ui/select"
 import { TextInput } from "@opencode/ui/text-input"
+import { UnsupportedIntegrationIDs } from "@opencode/schema/credential-quota"
 import { showToast } from "@/shell/notifications/toast"
 import {
   type Component,
@@ -468,6 +470,15 @@ function ProviderConnection(props: {
     providerAccounts(integrations.list().find((integration) => integration.id === props.provider))
 
   const accounts = () => serverAccounts().toSorted((a, b) => a.label.localeCompare(b.label) || a.id.localeCompare(b.id))
+
+  const quotaEligible = () => {
+    const existing = serverAccounts()
+    if (existing.length === 0) return false
+    if (new Set<string>(UnsupportedIntegrationIDs).has(integrationID)) return false
+    return existing.every((account) => account.method === "key")
+  }
+
+  const quotaMetrics = ["requests", "tokens"] as const
 
   const activeAccount = () => state.activating ?? serverAccounts()[0]?.id
 
@@ -1003,8 +1014,12 @@ function ProviderConnection(props: {
     const [formStore, setFormStore] = createStore<{
       value: string
       error?: string
+      metric: "requests" | "tokens"
+      amount: string
     }>({
       value: "",
+      metric: "requests",
+      amount: "",
     })
 
     onMount(() => {
@@ -1025,7 +1040,16 @@ function ProviderConnection(props: {
       }
 
       setFormStore("error", undefined)
-      await controller.auth.connectKey(key)
+      const amount = formStore.amount.trim()
+      const parsed = amount ? Number(amount) : undefined
+      if (quotaEligible() && parsed !== undefined && (!Number.isFinite(parsed) || parsed <= 0)) {
+        setFormStore("error", language.t("provider.connect.quota.invalid"))
+        return
+      }
+      await controller.auth.connectKey(key, {
+        ...(quotaEligible() ? { activate: false } : {}),
+        ...(quotaEligible() && parsed !== undefined ? { limit: { metric: formStore.metric, amount: parsed } } : {}),
+      })
     }
 
     return (
@@ -1055,6 +1079,38 @@ function ProviderConnection(props: {
               onInput={(event) => setFormStore("value", event.currentTarget.value)}
             />
           </label>
+          <Show when={quotaEligible()}>
+            <div class="flex w-full flex-col gap-2">
+              <span class="font-[530] leading-4 text-v2-text-text-base">
+                {language.t("provider.connect.quota.label")}
+              </span>
+              <p>{language.t("provider.connect.quota.description")}</p>
+              <Select
+                options={quotaMetrics}
+                current={formStore.metric}
+                aria-label={language.t("provider.connect.quota.metric")}
+                label={(metric) =>
+                  metric === "requests"
+                    ? language.t("settings.usage.metric.requests")
+                    : language.t("settings.usage.metric.tokens")
+                }
+                onSelect={(metric) => {
+                  if (!metric) return
+                  setFormStore("metric", metric)
+                }}
+              />
+              <TextInput
+                numeric
+                type="number"
+                min="0"
+                step="any"
+                name="quotaAmount"
+                value={formStore.amount}
+                aria-label={language.t("provider.connect.quota.amount")}
+                onInput={(event) => setFormStore("amount", event.currentTarget.value)}
+              />
+            </div>
+          </Show>
           <Show when={formStore.error}>
             {(error) => (
               <div id={errorID} role="alert" class="-mt-4 text-xs text-v2-state-fg-danger">

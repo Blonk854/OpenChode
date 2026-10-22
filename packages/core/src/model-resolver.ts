@@ -6,6 +6,7 @@ import { Auth } from "@opencode/ai/route"
 import { Context, Effect, Layer, Schema, Struct } from "effect"
 import { AISDK } from "./aisdk.js"
 import { Credential } from "./credential.js"
+import { CredentialQuota } from "./credential/quota.js"
 import { Integration } from "./integration.js"
 import { Capabilities, ID, Info, Model, Ref, VariantID } from "./model.js"
 import type { RuntimeInfo } from "./model.js"
@@ -106,6 +107,7 @@ export type Error =
   | UnresolvedProviderVariablesError
   | UnsupportedCompactionError
   | Integration.AuthorizationError
+  | CredentialQuota.ExhaustedError
 
 export interface Resolved {
   /** Route-level model for provider requests; its id is the provider API model id, which may differ from the catalog id. */
@@ -124,6 +126,12 @@ export interface Resolved {
   readonly transport?: Provider.Transport
   /** Milliseconds without streamed data before a WebSocket exchange fails; `false` disables the limit. */
   readonly chunkTimeout?: number | false
+  /** Stored account that authenticated this resolution. Absent for env and config keys. */
+  readonly credential?: {
+    readonly id: Credential.ID
+    readonly label: string
+    readonly integrationID: Integration.ID
+  }
 }
 
 export interface Interface {
@@ -367,14 +375,32 @@ export const layer = Layer.effect(
     const providers = yield* Provider.Service
     const models = yield* Model.Service
     const integrations = yield* Integration.Service
+    const quota = yield* CredentialQuota.Service
     const npm = yield* Npm.Service
     const aisdk = yield* AISDK.Service
     const load = Effect.fn("ModelResolver.resolveModel")(function* (selected: Info, variant?: VariantID) {
       const provider = yield* providers.get(selected.providerID)
-      const connection = yield* integrations.connection.active(
-        provider?.integrationID ?? Integration.ID.make(selected.providerID),
-      )
-      const credential = connection ? yield* integrations.connection.resolve(connection) : undefined
+      const integrationID = provider?.integrationID ?? Integration.ID.make(selected.providerID)
+      const choice = yield* quota.choose(integrationID)
+      if (choice.mode === "exhausted")
+        return yield* new CredentialQuota.ExhaustedError({
+          integrationID,
+          message: `All API keys for ${integrationID} are out of quota`,
+        })
+      const connection =
+        choice.mode === "passthrough" ? yield* integrations.connection.active(integrationID) : undefined
+      const credential =
+        choice.mode === "selected"
+          ? choice.value
+          : connection
+            ? yield* integrations.connection.resolve(connection)
+            : undefined
+      const account =
+        choice.mode === "selected"
+          ? { id: choice.id, label: choice.label, integrationID }
+          : connection?.type === "credential"
+            ? { id: connection.id, label: connection.label, integrationID }
+            : undefined
       const selectedVariant = yield* withVariant(selected, variant)
       const runtimeInfo: RuntimeInfo = {
         ...selectedVariant,
@@ -404,6 +430,7 @@ export const layer = Layer.effect(
         compaction: runtimeInfo.settings?.compaction,
         transport: provider?.settings?.transport,
         chunkTimeout: Provider.timeout(provider?.settings?.chunkTimeout),
+        ...(account === undefined ? {} : { credential: account }),
       }
     })
     return Service.of({
@@ -478,5 +505,5 @@ function usesAPIKeyAuth(packageName: string | undefined) {
 export const node = makeLocationNode({
   service: Service,
   layer,
-  deps: [Provider.node, Model.node, Integration.node, Npm.node, AISDK.node],
+  deps: [Provider.node, Model.node, Integration.node, Npm.node, AISDK.node, CredentialQuota.node],
 })

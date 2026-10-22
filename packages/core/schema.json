@@ -21,6 +21,18 @@
       "entityType": "tables"
     },
     {
+      "name": "credential_limit",
+      "entityType": "tables"
+    },
+    {
+      "name": "credential_usage",
+      "entityType": "tables"
+    },
+    {
+      "name": "credential_block",
+      "entityType": "tables"
+    },
+    {
       "name": "event_sequence",
       "entityType": "tables"
     },
@@ -359,6 +371,126 @@
       "name": "time_updated",
       "entityType": "columns",
       "table": "credential"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "credential_id",
+      "entityType": "columns",
+      "table": "credential_limit"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "metric",
+      "entityType": "columns",
+      "table": "credential_limit"
+    },
+    {
+      "type": "real",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "amount",
+      "entityType": "columns",
+      "table": "credential_limit"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "credential_id",
+      "entityType": "columns",
+      "table": "credential_usage"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "month",
+      "entityType": "columns",
+      "table": "credential_usage"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "provider_id",
+      "entityType": "columns",
+      "table": "credential_usage"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "model_id",
+      "entityType": "columns",
+      "table": "credential_usage"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "requests",
+      "entityType": "columns",
+      "table": "credential_usage"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "tokens",
+      "entityType": "columns",
+      "table": "credential_usage"
+    },
+    {
+      "type": "real",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "cost",
+      "entityType": "columns",
+      "table": "credential_usage"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "credential_id",
+      "entityType": "columns",
+      "table": "credential_block"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "until",
+      "entityType": "columns",
+      "table": "credential_block"
     },
     {
       "type": "text",
@@ -1652,6 +1784,39 @@
       "table": "worktree"
     },
     {
+      "columns": ["credential_id"],
+      "tableTo": "credential",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_credential_limit_credential_id_credential_id_fk",
+      "entityType": "fks",
+      "table": "credential_limit"
+    },
+    {
+      "columns": ["credential_id"],
+      "tableTo": "credential",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_credential_usage_credential_id_credential_id_fk",
+      "entityType": "fks",
+      "table": "credential_usage"
+    },
+    {
+      "columns": ["credential_id"],
+      "tableTo": "credential",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_credential_block_credential_id_credential_id_fk",
+      "entityType": "fks",
+      "table": "credential_block"
+    },
+    {
       "columns": ["email", "url"],
       "nameExplicit": false,
       "name": "control_account_pk",
@@ -1664,6 +1829,13 @@
       "name": "project_directory_pk",
       "entityType": "pks",
       "table": "project_directory"
+    },
+    {
+      "columns": ["credential_id", "month", "provider_id", "model_id"],
+      "nameExplicit": false,
+      "name": "credential_usage_pk",
+      "entityType": "pks",
+      "table": "credential_usage"
     },
     {
       "columns": ["session_id", "key"],
@@ -1698,6 +1870,20 @@
       "nameExplicit": false,
       "name": "credential_pk",
       "table": "credential",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["credential_id"],
+      "nameExplicit": false,
+      "name": "credential_limit_pk",
+      "table": "credential_limit",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["credential_id"],
+      "nameExplicit": false,
+      "name": "credential_block_pk",
+      "table": "credential_block",
       "entityType": "pks"
     },
     {

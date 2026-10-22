@@ -5,6 +5,7 @@ import { Permission } from "../permission.js"
 import { Integration } from "../integration.js"
 import { AgentNotFoundError, StepFailedError } from "./error.js"
 import { ModelResolver } from "../model-resolver.js"
+import { CredentialQuota } from "../credential/quota.js"
 import { SessionRunnerModel } from "./runner/model.js"
 
 const tokenSharingMessages = {
@@ -75,6 +76,8 @@ export function toSessionError(cause: unknown): SessionError.Error {
     return unwrapped.message === "" ? { ...unwrapped, type: "tool.execution", message: cause.message } : unwrapped
   }
   if (cause instanceof StepFailedError) return cause.error
+  if (cause instanceof CredentialQuota.ExhaustedError)
+    return { type: "provider.quota", message: cause.message }
   if (cause instanceof ModelResolver.UnsupportedCompactionError)
     return { type: "provider.unsupported-operation", message: cause.message }
   if (cause instanceof AgentNotFoundError) return { type: "unknown", message: cause.message }

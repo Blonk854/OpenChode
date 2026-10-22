@@ -6,6 +6,7 @@ import type { Agent } from "@opencode/schema/agent"
 import { Context, DateTime, Effect, Layer, Stream } from "effect"
 import { Database } from "../database/database.js"
 import { Bus } from "../bus.js"
+import { CredentialQuota } from "../credential/quota.js"
 import { makeLocationNode } from "@opencode/util/effect/app-node"
 import { isExactRootFallback } from "@opencode/util/session-title-fallback"
 import { llmClient } from "../effect/app-node-platform.js"
@@ -48,6 +49,7 @@ export const layer = Layer.effect(
     const llm = yield* LLMClient.Service
     const context = yield* SessionContext.Service
     const store = yield* SessionStore.Service
+    const quota = yield* CredentialQuota.Service
     const db = (yield* Database.Service).db
 
     const attempt = Effect.fn("SessionTitle.attempt")(function* (input: {
@@ -60,13 +62,23 @@ export const layer = Layer.effect(
       let failed = false
       let usage: SessionUsage.Recorded | undefined
       const recordUsage = Effect.suspend(() =>
-        usage
-          ? bus.publish(SessionEvent.UsageRecorded, {
-              sessionID: input.session.id,
-              source: "title",
-              ...usage,
-            })
-          : Effect.void,
+        Effect.gen(function* () {
+          if (!usage) return
+          yield* bus.publish(SessionEvent.UsageRecorded, {
+            sessionID: input.session.id,
+            source: "title",
+            ...usage,
+          })
+          const credential = input.model.credential
+          if (!credential) return
+          yield* quota.record({
+            credentialID: credential.id,
+            providerID: input.model.ref.providerID,
+            modelID: input.model.ref.id,
+            usage,
+            succeeded: !failed,
+          })
+        }),
       )
       const prepared = yield* context.request.title({
         session: input.session,
@@ -159,5 +171,5 @@ export const layer = Layer.effect(
 export const node = makeLocationNode({
   service: Service,
   layer,
-  deps: [Bus.node, llmClient, SessionContext.node, SessionStore.node, Database.node],
+  deps: [Bus.node, llmClient, SessionContext.node, SessionStore.node, Database.node, CredentialQuota.node],
 })

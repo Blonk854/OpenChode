@@ -475,12 +475,20 @@ export function createProviderConnectionController(options: {
     dispatch({ type: "method.reset" })
   }
 
-  const connectKey = async (key: string) => {
+  const connectKey = async (
+    key: string,
+    quota?: {
+      activate?: boolean
+      limit?: { metric: "requests" | "tokens" | "usd"; amount: number }
+    },
+  ) => {
     await serverSDK.api.integration.connect.key({
       integrationID: options.keyProvider?.() ?? options.provider(),
       location: location(),
       key,
       answer: store.formAnswer,
+      ...(quota?.activate === undefined ? {} : { activate: quota.activate }),
+      ...(quota?.limit === undefined ? {} : { limit: quota.limit }),
     })
     await finish()
   }

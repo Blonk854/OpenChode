@@ -30,6 +30,7 @@ import type { Provider } from "@opencode/schema/provider"
 import type { Integration } from "@opencode/schema/integration"
 import type { Mcp } from "@opencode/schema/mcp"
 import type { Credential } from "@opencode/schema/credential"
+import type { CredentialQuota } from "@opencode/schema/credential-quota"
 import type { PermissionSaved } from "@opencode/schema/permission-saved"
 import type { FileSystem } from "@opencode/schema/filesystem"
 import type { Command } from "@opencode/schema/command"
@@ -1505,6 +1506,8 @@ export type IntegrationConnectKeyInput = {
   readonly key: string
   readonly answer?: Form.Answer | undefined
   readonly label?: string | undefined
+  readonly activate?: boolean | undefined
+  readonly limit?: CredentialQuota.Limit | undefined
 }
 export type IntegrationConnectKeyOutput = void
 export type IntegrationConnectKeyOperation<E = never> = (
@@ -1711,12 +1714,30 @@ export type CredentialRemoveOperation<E = never> = (
   input: CredentialRemoveInput,
 ) => Effect.Effect<CredentialRemoveOutput, E>
 
+export type CredentialUsageOutput = CredentialQuota.Report
+export type CredentialUsageOperation<E = never> = () => Effect.Effect<CredentialUsageOutput, E>
+
+export type CredentialLimitInput = { readonly credentialID: Credential.ID; readonly limit: CredentialQuota.Limit | null }
+export type CredentialLimitOutput = void
+export type CredentialLimitOperation<E = never> = (
+  input: CredentialLimitInput,
+) => Effect.Effect<CredentialLimitOutput, E>
+
+export type CredentialUnblockInput = { readonly credentialID: Credential.ID }
+export type CredentialUnblockOutput = void
+export type CredentialUnblockOperation<E = never> = (
+  input: CredentialUnblockInput,
+) => Effect.Effect<CredentialUnblockOutput, E>
+
 export interface CredentialApi<E = never> {
   readonly list: CredentialListOperation<E>
   readonly create: CredentialCreateOperation<E>
   readonly update: CredentialUpdateOperation<E>
   readonly activate: CredentialActivateOperation<E>
   readonly remove: CredentialRemoveOperation<E>
+  readonly usage: CredentialUsageOperation<E>
+  readonly limit: CredentialLimitOperation<E>
+  readonly unblock: CredentialUnblockOperation<E>
 }
 
 export type ProjectListInput = { readonly archived?: boolean | undefined }

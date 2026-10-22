@@ -1,3 +1,4 @@
+import type { CredentialQuota } from "@opencode/schema/credential-quota"
 import type {
   ServerInfoOutput,
   ServerPairOutput,
@@ -1274,7 +1275,13 @@ export function make(options: ClientOptions) {
               method: "POST",
               path: `/api/integration/${encodeURIComponent(input.integrationID)}/connect/key`,
               query: { location: input["location"] },
-              body: { key: input["key"], answer: input["answer"], label: input["label"] },
+              body: {
+                key: input["key"],
+                answer: input["answer"],
+                label: input["label"],
+                activate: input["activate"],
+                limit: input["limit"],
+              },
               successStatus: 204,
               declaredStatuses: [400, 401, 404],
               empty: true,
@@ -1518,6 +1525,37 @@ export function make(options: ClientOptions) {
             path: `/api/credential/${encodeURIComponent(input.credentialID)}`,
             successStatus: 204,
             declaredStatuses: [400, 401],
+            empty: true,
+          },
+          requestOptions,
+        ),
+      usage: (requestOptions?: RequestOptions) =>
+        request<CredentialQuota.Report>(
+          { method: "GET", path: `/api/usage`, successStatus: 200, declaredStatuses: [400, 401], empty: false },
+          requestOptions,
+        ),
+      limit: (
+        input: { credentialID: string; limit: CredentialQuota.Limit | null },
+        requestOptions?: RequestOptions,
+      ) =>
+        request<void>(
+          {
+            method: "PUT",
+            path: `/api/credential/${encodeURIComponent(input.credentialID)}/limit`,
+            body: { limit: input["limit"] },
+            successStatus: 204,
+            declaredStatuses: [400, 401, 404],
+            empty: true,
+          },
+          requestOptions,
+        ),
+      unblock: (input: { credentialID: string }, requestOptions?: RequestOptions) =>
+        request<void>(
+          {
+            method: "DELETE",
+            path: `/api/credential/${encodeURIComponent(input.credentialID)}/block`,
+            successStatus: 204,
+            declaredStatuses: [400, 401, 404],
             empty: true,
           },
           requestOptions,

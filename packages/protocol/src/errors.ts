@@ -89,6 +89,15 @@ export class ProviderNotFoundError extends Schema.TaggedError<ProviderNotFoundEr
   { httpApiStatus: 404 },
 ) {}
 
+export class CredentialNotFoundError extends Schema.TaggedError<CredentialNotFoundError>()(
+  "CredentialNotFoundError",
+  {
+    credentialID: Schema.String,
+    message: Schema.String,
+  },
+  { httpApiStatus: 404 },
+) {}
+
 export class IntegrationNotFoundError extends Schema.TaggedError<IntegrationNotFoundError>()(
   "IntegrationNotFoundError",
   {

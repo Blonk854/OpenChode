@@ -1,4 +1,5 @@
 import { Integration } from "@opencode/schema/integration"
+import { CredentialQuota } from "@opencode/schema/credential-quota"
 import { Location } from "@opencode/schema/location"
 import { Form } from "@opencode/schema/form"
 import { Schema } from "effect"
@@ -62,11 +63,13 @@ export const IntegrationGroup = HttpApiGroup.make("server.integration")
     HttpApiEndpoint.post("integration.connect.key", "/api/integration/:integrationID/connect/key", {
       params: { integrationID: Integration.ID },
       query: LocationQuery,
-      payload: Schema.Struct({
-        key: Schema.String,
-        answer: Schema.optional(Form.Answer),
-        label: Schema.optional(Schema.String),
-      }),
+    payload: Schema.Struct({
+      key: Schema.String,
+      answer: Schema.optional(Form.Answer),
+      label: Schema.optional(Schema.String),
+      activate: Schema.optional(Schema.Boolean),
+      limit: Schema.optional(CredentialQuota.Limit),
+    }),
       success: HttpApiSchema.NoContent,
       error: [IntegrationNotFoundError, InvalidRequestError],
     })

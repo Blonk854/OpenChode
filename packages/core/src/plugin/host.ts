@@ -283,12 +283,14 @@ export const make = Effect.fn("PluginHost.make")(function* (
       }),
       connect: {
         key: (input) =>
-          integration.connection.key({
-            integrationID: Integration.ID.make(input.integrationID),
-            key: input.key,
-            answer: input.answer,
-            label: input.label,
-          }),
+          integration.connection
+            .key({
+              integrationID: Integration.ID.make(input.integrationID),
+              key: input.key,
+              answer: input.answer,
+              label: input.label,
+            })
+            .pipe(Effect.asVoid),
         external: (input) =>
           integration.connection.external({
             integrationID: Integration.ID.make(input.integrationID),

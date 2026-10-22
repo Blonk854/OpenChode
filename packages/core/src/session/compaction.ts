@@ -21,6 +21,7 @@ import { makeLocationNode } from "@opencode/util/effect/app-node"
 import { Context, Effect, Layer, Result, Stream } from "effect"
 import { Agent } from "../agent.js"
 import { Bus } from "../bus.js"
+import { CredentialQuota } from "../credential/quota.js"
 import { Database } from "../database/database.js"
 import { llmClient } from "../effect/app-node-platform.js"
 import { Model } from "../model.js"
@@ -192,6 +193,7 @@ export const layer = Layer.effect(
     const agents = yield* Agent.Service
     const bus = yield* Bus.Service
     const llm = yield* LLMClient.Service
+    const quota = yield* CredentialQuota.Service
     const catalog = yield* Model.Service
     const models = yield* SessionRunnerModel.Service
     const db = (yield* Database.Service).db
@@ -552,7 +554,11 @@ export const layer = Layer.effect(
             }
 
             if (LLMEvent.is.stepFinish(event)) {
-              return spend(sessionID, SessionUsage.record(event.usage, context.model.cost)).pipe(Effect.as(streamed))
+              const recorded = SessionUsage.record(event.usage, context.model.cost)
+              return spend(sessionID, recorded).pipe(
+                Effect.tap(() => recordQuota(context.model, recorded, false)),
+                Effect.as(streamed),
+              )
             }
 
             if (!LLMEvent.is.finish(event)) return Effect.succeed(streamed)
@@ -578,7 +584,7 @@ export const layer = Layer.effect(
               case "content-filter":
                 return unusable(contentFilterError("Compaction summary was blocked by the provider", event.reason))
               default:
-                return Effect.succeed(streamed)
+                return recordQuota(context.model, undefined, true).pipe(Effect.as(streamed))
             }
           },
         ),
@@ -640,6 +646,25 @@ export const layer = Layer.effect(
         yield* bus.publish(SessionEvent.UsageRecorded, { sessionID, source: "compaction", ...usage })
       })
 
+    const recordQuota = (
+      model: SessionContext.Loaded["model"],
+      usage: SessionUsage.Recorded | undefined,
+      succeeded: boolean,
+    ) => {
+      const credential = model.credential
+      if (!credential) return Effect.void
+      return quota.record({
+        credentialID: credential.id,
+        providerID: model.ref.providerID,
+        modelID: model.ref.id,
+        usage: usage ?? {
+          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          cost: 0,
+        },
+        succeeded,
+      })
+    }
+
     const publish = Effect.fnUntraced(function* (
       trigger: Trigger,
       outcome: Result | Failure,
@@ -695,7 +720,7 @@ export const layer = Layer.effect(
 export const node = makeLocationNode({
   service: Service,
   layer,
-  deps: [Agent.node, Bus.node, Database.node, llmClient, Model.node, SessionModelRequest.node, SessionRunnerModel.node],
+  deps: [Agent.node, Bus.node, Database.node, llmClient, Model.node, SessionModelRequest.node, SessionRunnerModel.node, CredentialQuota.node],
 })
 
 /** History loads from the latest completed compaction, so a previous one is always the first message. */

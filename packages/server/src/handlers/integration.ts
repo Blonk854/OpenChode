@@ -1,4 +1,5 @@
 import { Integration } from "@opencode/core/integration"
+import { CredentialQuota } from "@opencode/core/credential/quota"
 import { Plugin } from "@opencode/core/plugin"
 import { Effect } from "effect"
 import { HttpApiBuilder, HttpApiSchema } from "effect/http-api"
@@ -73,14 +74,29 @@ export const IntegrationHandler = HttpApiBuilder.group(Api, "server.integration"
               integrationID: ctx.params.integrationID,
               message: `Integration not found: ${ctx.params.integrationID}`,
             })
-          yield* authorize(
+          const created = yield* authorize(
             service.connection.key({
               integrationID: ctx.params.integrationID,
               key: ctx.payload.key,
               answer: ctx.payload.answer,
               label: ctx.payload.label,
+              activate: ctx.payload.activate,
             }),
           )
+          if (ctx.payload.limit) {
+            const quota = yield* CredentialQuota.Service
+            yield* quota.setLimit(created.id, ctx.payload.limit).pipe(
+              Effect.mapError(
+                (error) =>
+                  new InvalidRequestError({
+                    message:
+                      error._tag === "CredentialQuota.RejectedLimitError"
+                        ? error.message
+                        : `Credential not found: ${error.credentialID}`,
+                  }),
+              ),
+            )
+          }
           return HttpApiSchema.NoContent.make()
         }),
       )

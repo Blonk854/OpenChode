@@ -14,6 +14,7 @@ import { PromptInput } from "@opencode/schema/prompt-input"
 import { Bus } from "./bus.js"
 import { Instance } from "./instance/service.js"
 import { Database } from "./database/database.js"
+import { CredentialQuota } from "./credential/quota.js"
 import { SessionProjector } from "./session/projector.js"
 import { SessionMessageTable } from "./session/sql.js"
 import { SessionSchema } from "./session/schema.js"
@@ -520,6 +521,7 @@ export const node: LayerNode.Provider<Service, never, typeof Node.tags.values.gl
     SessionInbox.node,
     SessionMove.node,
     SessionProjector.node,
+    CredentialQuota.node,
     LocationServiceMap.node,
     FSUtil.node,
     App.node,

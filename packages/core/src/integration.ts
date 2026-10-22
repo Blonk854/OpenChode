@@ -192,7 +192,9 @@ export interface Interface extends State.Transformable<Editor> {
       readonly answer?: Form.Answer
       /** User-facing label for the stored credential. */
       readonly label?: string
-    }) => Effect.Effect<void, AuthorizationError>
+      /** When false, an existing account stays active. The first account is still activated. */
+      readonly activate?: boolean
+    }) => Effect.Effect<Credential.Info, AuthorizationError>
     /** Runs an external method and stores a reference configured by its form answers. */
     readonly external: (input: {
       /** Integration receiving the credential. */
@@ -750,15 +752,17 @@ const layer = Layer.effect(
           if (!method.form && Object.keys(answer).length > 0) {
             return yield* new AuthorizationError({ cause: new Error("Key method does not accept a form answer") })
           }
-          yield* createCredential({
+          const created = yield* createCredential({
             integrationID: input.integrationID,
             label: input.label,
+            ...(input.activate === undefined ? {} : { activate: input.activate }),
             value: Credential.Key.make({
               type: "key",
               key: input.key,
               ...(Object.keys(answer).length > 0 ? { metadata: answer } : {}),
             }),
           })
+          return created
         }),
         external: Effect.fn("Integration.connection.external")(function* (input) {
           const method = state

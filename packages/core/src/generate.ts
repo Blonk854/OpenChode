@@ -6,8 +6,10 @@ import { Context, Effect, Layer, Schema } from "effect"
 import { makeLocationNode } from "@opencode/util/effect/app-node"
 import { llmClient } from "./effect/app-node-platform.js"
 import { ModelResolver } from "./model-resolver.js"
+import { CredentialQuota } from "./credential/quota.js"
 import { Model } from "./model.js"
 import { ModelRetry } from "./model-retry.js"
+import { SessionUsage } from "./session/usage.js"
 
 export interface TextInput {
   readonly prompt: string
@@ -35,10 +37,14 @@ export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const llm = yield* LLMClient.Service
+    const quota = yield* CredentialQuota.Service
     const resolver = yield* ModelResolver.Service
 
     const runText = Effect.fn("Generate.text")(function* (input: TextInput) {
       const resolved = yield* resolver.resolve(input.model).pipe(
+        Effect.catchTag("CredentialQuota.ExhaustedError", (error) =>
+          Effect.fail(new UnavailableError({ message: error.message, service: error.integrationID })),
+        ),
         Effect.catchTag(
           [
             "SessionRunnerModel.VariantUnavailableError",
@@ -81,6 +87,15 @@ export const layer = Layer.effect(
               }),
           ),
         )
+      const credential = resolved.credential
+      if (credential)
+        yield* quota.record({
+          credentialID: credential.id,
+          providerID: resolved.ref.providerID,
+          modelID: resolved.ref.id,
+          usage: SessionUsage.record(response.usage, resolved.cost),
+          succeeded: true,
+        })
       return response.text
     })
 
@@ -102,5 +117,5 @@ export const layer = Layer.effect(
 export const node = makeLocationNode({
   service: Service,
   layer,
-  deps: [ModelResolver.node, llmClient],
+  deps: [ModelResolver.node, llmClient, CredentialQuota.node],
 })

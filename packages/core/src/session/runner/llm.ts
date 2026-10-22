@@ -2,7 +2,10 @@ export * as SessionRunnerLLM from "./llm.js"
 
 import { Message } from "@opencode/ai"
 import { and, desc, eq, inArray, sql } from "drizzle-orm"
-import { Cause, Effect, Exit, FiberMap, Layer } from "effect"
+import { Cause, Effect, Exit, FiberMap, FiberRef, Layer } from "effect"
+import { Credential } from "../../credential.js"
+import { CredentialQuota } from "../../credential/quota.js"
+import { Integration } from "../../integration.js"
 import { Database } from "../../database/database.js"
 import { Bus } from "../../bus.js"
 import { LocationLifecycle } from "../../location-lifecycle.js"
@@ -44,6 +47,7 @@ const layer = Layer.effect(
     const lifecycle = yield* LocationLifecycle.Service
     const store = yield* SessionStore.Service
     const context = yield* SessionContext.Service
+    const quota = yield* CredentialQuota.Service
     const modelTransport = yield* SessionModelTransport.Service
     const db = (yield* Database.Service).db
     const compaction = yield* SessionCompaction.Service
@@ -173,6 +177,7 @@ const layer = Layer.effect(
                       onlyIfMissing: true,
                     })
                   if (promoted > 0) step = 1
+                  yield* FiberRef.set(CredentialQuota.Excluded, new Set())
                   return { _tag: "Ready" as const, context: yield* context.load(selected) }
                 }),
               )
@@ -207,7 +212,9 @@ const layer = Layer.effect(
       let initial: SessionContext.Loaded | undefined = first
       let recoverOverflow = true
       let recoverContinuation = true
+      let excluded = new Set<string>()
       while (true) {
+        yield* FiberRef.set(CredentialQuota.Excluded, excluded)
         // Reuse boundary preparation once; retries refresh context without delivering more input.
         const loaded = initial ?? (yield* prepareContext(sessionID).pipe(Effect.flatMap(context.load)))
         initial = undefined
@@ -263,6 +270,33 @@ const layer = Layer.effect(
                   .pipe(Effect.map((result) => result.status === "completed"))
               : Effect.succeed(false),
           ),
+          rotate: (input) =>
+            Effect.gen(function* () {
+              if (!(yield* quota.rotates(Integration.ID.make(input.integrationID)))) return false
+              yield* quota.block(Credential.ID.make(input.id), input.retryAfterMs)
+              excluded = new Set(excluded).add(input.id)
+              yield* FiberRef.set(CredentialQuota.Excluded, excluded)
+              const next = yield* quota.choose(Integration.ID.make(input.integrationID))
+              if (next.mode !== "selected") return false
+              yield* Effect.logInfo("credential rotated", {
+                credentialID: input.id,
+                label: input.label,
+                nextID: next.id,
+                nextLabel: next.label,
+              })
+              return true
+            }),
+          recordUsage: (usage, succeeded) => {
+            const credential = loaded.model.credential
+            if (!credential) return Effect.void
+            return quota.record({
+              credentialID: credential.id,
+              providerID: loaded.model.ref.providerID,
+              modelID: loaded.model.ref.id,
+              usage,
+              succeeded,
+            })
+          },
         })
         const completed = yield* SessionStep.Outcome.$match(outcome, {
           Completed: (outcome) => Effect.succeed(outcome.needsContinuation),
@@ -318,6 +352,7 @@ const layer = Layer.effect(
           RecoverFull: Effect.fnUntraced(function* () {
             recoverContinuation = false
           }),
+          RotateCredential: () => Effect.void,
         })
         if (completed !== undefined) return completed
       }
@@ -398,5 +433,6 @@ export const node = makeLocationNode({
     Snapshot.node,
     ToolOutput.node,
     Database.node,
+    CredentialQuota.node,
   ],
 })

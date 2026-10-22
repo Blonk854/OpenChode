@@ -5065,6 +5065,8 @@ export type IntegrationConnectKeyInput = {
     readonly answer?: { readonly [x: string]: string | number | boolean | ReadonlyArray<string> } | undefined
     readonly label?: string | undefined
   }["label"]
+  readonly activate?: boolean
+  readonly limit?: { readonly metric: "requests" | "tokens" | "usd"; readonly amount: number }
 }
 
 export type IntegrationConnectKeyOutput = void

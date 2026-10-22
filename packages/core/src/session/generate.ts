@@ -4,10 +4,12 @@ import type { FileSystem } from "../filesystem.js"
 import { LLMClient, Message, type AIError } from "@opencode/ai"
 import { Effect } from "effect"
 import { Database } from "../database/database.js"
+import { CredentialQuota } from "../credential/quota.js"
 import { Instance } from "../instance/service.js"
 import { Plugin } from "../plugin/service.js"
 import type { Instructions } from "../instructions/index.js"
 import { SessionContext } from "./context.js"
+import { SessionUsage } from "./usage.js"
 import type { AgentNotFoundError } from "./error.js"
 import { SessionHistory } from "./history.js"
 import { SessionModelRequest } from "./model-request.js"
@@ -34,6 +36,7 @@ export const generate = Effect.fn("SessionGenerate.generate")(function* (input: 
   return yield* Effect.gen(function* () {
     yield* Plugin.awaitActivation
     const context = yield* SessionContext.Service
+    const quota = yield* CredentialQuota.Service
     const selection = yield* context.select(input.session.id)
     const model = yield* context.resolveModel(selection.session)
     const history = yield* SessionHistory.preview(database.db, selection.session.id, selection.instructions, model.ref)
@@ -62,6 +65,15 @@ export const generate = Effect.fn("SessionGenerate.generate")(function* (input: 
       modelID: model.ref.id,
     })
     const response = yield* llm.generate(prepared.request, prepared.options).pipe(ModelRetry.retry)
+    const credential = model.credential
+    if (credential)
+      yield* quota.record({
+        credentialID: credential.id,
+        providerID: model.ref.providerID,
+        modelID: model.ref.id,
+        usage: SessionUsage.record(response.usage, model.cost),
+        succeeded: true,
+      })
     yield* Effect.logInfo("session generation usage diagnostic", { usage: response.usage })
     return response.text
   }).pipe(instances.provide(input.session))

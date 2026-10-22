@@ -169,6 +169,11 @@ import type {
   CredentialActivateOutput,
   CredentialRemoveInput,
   CredentialRemoveOutput,
+  CredentialUsageOutput,
+  CredentialLimitInput,
+  CredentialLimitOutput,
+  CredentialUnblockInput,
+  CredentialUnblockOutput,
   ProjectListInput,
   ProjectListOutput,
   ProjectUpdateInput,
@@ -951,7 +956,13 @@ const EndpointIntegrationConnectKey = (raw: RawClient["server.integration"]) => 
     raw["integration.connect.key"]({
       params: { integrationID: input["integrationID"] },
       query: { location: input["location"] },
-      payload: { key: input["key"], answer: input["answer"], label: input["label"] },
+      payload: {
+        key: input["key"],
+        answer: input["answer"],
+        label: input["label"],
+        activate: input["activate"],
+        limit: input["limit"],
+      },
     }).pipe(Effect.mapError(mapClientError)),
   )
 
@@ -1140,12 +1151,31 @@ const EndpointCredentialRemove = (raw: RawClient["server.credential"]) => (input
     raw["credential.remove"]({ params: { credentialID: input["credentialID"] } }).pipe(Effect.mapError(mapClientError)),
   )
 
+const EndpointCredentialUsage = (raw: RawClient["server.credential"]) => () =>
+  preserveEffect<CredentialUsageOutput>()(raw["credential.usage"]({}).pipe(Effect.mapError(mapClientError)))
+
+const EndpointCredentialLimit = (raw: RawClient["server.credential"]) => (input: CredentialLimitInput) =>
+  preserveEffect<CredentialLimitOutput>()(
+    raw["credential.limit"]({
+      params: { credentialID: input["credentialID"] },
+      payload: { limit: input["limit"] },
+    }).pipe(Effect.mapError(mapClientError)),
+  )
+
+const EndpointCredentialUnblock = (raw: RawClient["server.credential"]) => (input: CredentialUnblockInput) =>
+  preserveEffect<CredentialUnblockOutput>()(
+    raw["credential.unblock"]({ params: { credentialID: input["credentialID"] } }).pipe(Effect.mapError(mapClientError)),
+  )
+
 const adaptGroupCredential = (raw: RawClient["server.credential"]) => ({
   list: EndpointCredentialList(raw),
   create: EndpointCredentialCreate(raw),
   update: EndpointCredentialUpdate(raw),
   activate: EndpointCredentialActivate(raw),
   remove: EndpointCredentialRemove(raw),
+  usage: EndpointCredentialUsage(raw),
+  limit: EndpointCredentialLimit(raw),
+  unblock: EndpointCredentialUnblock(raw),
 })
 
 const EndpointProjectList = (raw: RawClient["server.project"]) => (input?: ProjectListInput) =>

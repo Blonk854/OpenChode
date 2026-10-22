@@ -31,6 +31,7 @@ import { experimentalSettingsAvailable, SettingsExperimental } from "./experimen
 import { SettingsKeybinds } from "./keybinds/keybinds"
 import { SettingsNotifications } from "./notifications/notifications"
 import { SettingsProviders } from "./providers/providers"
+import { SettingsUsage } from "./usage/usage"
 import { SettingsModels } from "./models/models"
 import { SettingsServerGeneral } from "./servers/servers"
 import { useSettingsServers, useSettingsServersLoaded, type SettingsServer } from "./servers/inventory"
@@ -67,6 +68,7 @@ const serverTabs = [
   { value: "projects", icon: pageIcons.projects, label: "settings.tab.projects" },
   { value: "workspaces", icon: pageIcons.workspaces, label: "settings.tab.workspaces" },
   { value: "providers", icon: pageIcons.providers, label: "settings.providers.title" },
+  { value: "usage", icon: pageIcons.usage, label: "settings.usage.title" },
   { value: "models", icon: pageIcons.models, label: "settings.models.title" },
   { value: "extensions", icon: pageIcons.extensions, label: "settings.tab.extensions" },
 ] as const
@@ -331,7 +333,7 @@ function RootSettings() {
 
     if (view.type !== "root" || !loaded() || !multiple()) return
 
-    if (["projects", "workspaces", "providers", "models", "extensions", "servers"].includes(view.tab))
+    if (["projects", "workspaces", "providers", "usage", "models", "extensions", "servers"].includes(view.tab))
       surface.open("general")
   })
 
@@ -410,6 +412,9 @@ function RootSettings() {
                   surface.select("models")
                 }}
               />
+            </Tabs.Content>
+            <Tabs.Content value="usage" class="settings-panel">
+              <SettingsUsage />
             </Tabs.Content>
             <Tabs.Content value="models" class="settings-panel">
               <SettingsModels
@@ -510,6 +515,9 @@ function ServerSettings(props: { entry: SettingsServer }) {
                   surface.select("models")
                 }}
               />
+            </Tabs.Content>
+            <Tabs.Content value="usage" class="settings-panel">
+              <SettingsUsage />
             </Tabs.Content>
             <Tabs.Content value="models" class="settings-panel">
               <SettingsModels

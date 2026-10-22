@@ -37,6 +37,8 @@ export type Outcome = Data.TaggedEnum<{
     readonly decision: SessionRunnerRetry.Decision
   }
   RecoverFull: {}
+  /** Quota failed before output. The runner already blocked this key and will resolve the next one. */
+  RotateCredential: {}
   Compacted: {}
   OutputLimit: { readonly needsContinuation: boolean }
 }>
@@ -54,6 +56,14 @@ interface Input {
     error: SessionError.Error,
     retry: boolean,
   ) => Effect.Effect<{ readonly retry: false } | SessionRunnerRetry.Decision>
+  /** Blocks the key that hit quota and reports whether another key can take the step. */
+  readonly rotate: (input: {
+    readonly id: string
+    readonly label: string
+    readonly integrationID: string
+    readonly retryAfterMs?: number
+  }) => Effect.Effect<boolean>
+  readonly recordUsage: (usage: SessionUsage.Recorded, succeeded: boolean) => Effect.Effect<void>
   readonly recoverContinuation: boolean
   /** The runner owns compaction policy; the attempt invokes it only before durable output. */
   readonly recoverOverflow: Effect.Effect<boolean>
@@ -179,6 +189,33 @@ export const make = Effect.gen(function* () {
             : undefined
         const llmFailure = streamFailure instanceof AIError ? streamFailure : unknownFinish
         const llmError = llmFailure && !recorded.providerFailed ? toSessionError(llmFailure) : undefined
+        const attributed = (error: SessionError.Error): SessionError.Error => {
+          const credential = input.model.credential
+          if (!credential) return error
+          return { ...error, message: `${error.message} (${credential.label})` }
+        }
+        if (llmError?.type === "provider.quota" && !recorded.outputStarted && input.model.credential) {
+          const credential = input.model.credential
+          const rotated = yield* restore(
+            input.rotate({
+              id: credential.id,
+              label: credential.label,
+              integrationID: credential.integrationID,
+              retryAfterMs: llmError.retryAfterMs,
+            }),
+          )
+          if (rotated) {
+            if (recorded.finish)
+              yield* input.recordUsage(
+                {
+                  tokens: recorded.finish.tokens,
+                  cost: SessionUsage.calculateCost(input.model.cost, recorded.finish.tokens),
+                },
+                false,
+              )
+            return Outcome.RotateCredential()
+          }
+        }
         if (
           input.recoverContinuation &&
           llmFailure?.reason._tag === "Transport" &&
@@ -202,7 +239,7 @@ export const make = Effect.gen(function* () {
           yield* publisher.startAssistant()
           return Outcome.Retry({ error: llmError, decision: retry })
         }
-        if (llmError) yield* publisher.failAssistant(llmError)
+        if (llmError) yield* publisher.failAssistant(attributed(llmError))
 
         for (const decline of tools.declines)
           yield* publisher.failTool(decline.call.id, {
@@ -246,6 +283,7 @@ export const make = Effect.gen(function* () {
           const usage = record.finish
             ? { cost: SessionUsage.calculateCost(input.model.cost, record.finish.tokens), tokens: record.finish.tokens }
             : undefined
+          if (usage) yield* input.recordUsage(usage, !record.failure)
           if (record.failure) yield* publisher.publishStepFailure({ ...usage, snapshot, files })
           if (record.finish && usage && !record.failure)
             yield* bus.publish(SessionEvent.Step.Ended, {

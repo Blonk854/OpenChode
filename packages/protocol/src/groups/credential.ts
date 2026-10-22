@@ -1,7 +1,8 @@
 import { Credential } from "@opencode/schema/credential"
+import { CredentialQuota } from "@opencode/schema/credential-quota"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/http-api"
-import { ConflictError } from "../errors.js"
+import { ConflictError, CredentialNotFoundError, InvalidRequestError } from "../errors.js"
 
 export const CredentialGroup = HttpApiGroup.make("server.credential")
   .add(
@@ -69,4 +70,42 @@ export const CredentialGroup = HttpApiGroup.make("server.credential")
           description: "Remove a stored integration credential.",
         }),
       ),
+  )
+  .add(
+    HttpApiEndpoint.get("credential.usage", "/api/usage", {
+      success: CredentialQuota.Report,
+    }).annotateMerge(
+      OpenApi.annotations({
+        identifier: "credential.usage",
+        summary: "List quota usage",
+        description: "Monthly quota usage for stored credentials. The payload has labels and totals only.",
+      }),
+    ),
+  )
+  .add(
+    HttpApiEndpoint.put("credential.limit", "/api/credential/:credentialID/limit", {
+      params: { credentialID: Credential.ID },
+      payload: Schema.Struct({ limit: Schema.NullOr(CredentialQuota.Limit) }),
+      success: HttpApiSchema.NoContent,
+      error: [CredentialNotFoundError, InvalidRequestError],
+    }).annotateMerge(
+      OpenApi.annotations({
+        identifier: "credential.limit",
+        summary: "Set credential limit",
+        description: "Set or clear the monthly quota limit for one stored API key. Null clears the limit.",
+      }),
+    ),
+  )
+  .add(
+    HttpApiEndpoint.delete("credential.unblock", "/api/credential/:credentialID/block", {
+      params: { credentialID: Credential.ID },
+      success: HttpApiSchema.NoContent,
+      error: CredentialNotFoundError,
+    }).annotateMerge(
+      OpenApi.annotations({
+        identifier: "credential.unblock",
+        summary: "Unblock credential",
+        description: "Clear a quota block on a stored credential.",
+      }),
+    ),
   )

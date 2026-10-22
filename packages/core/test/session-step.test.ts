@@ -1,9 +1,11 @@
 import { expect } from "bun:test"
-import { LanguageModel, LLM, LLMEvent } from "@opencode/ai"
+import { AIError, LanguageModel, LLM, LLMEvent, QuotaExceededError } from "@opencode/ai"
 import { OpenAIChat } from "@opencode/ai/protocols/openai-chat"
 import { TestLLM } from "@opencode/ai/testing"
 import { Agent } from "@opencode/core/agent"
 import { Bus } from "@opencode/core/bus"
+import { Credential } from "@opencode/core/credential"
+import { Integration } from "@opencode/core/integration"
 import { Database } from "@opencode/core/database/database"
 import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
 import { EventTable } from "@opencode/core/event/sql"
@@ -21,7 +23,7 @@ import { ToolOutput } from "@opencode/core/tool-output"
 import { Money } from "@opencode/schema/money"
 import { LayerNode } from "@opencode/util/effect/layer-node"
 import { asc, eq } from "drizzle-orm"
-import { Effect, Exit, Layer } from "effect"
+import { Effect, Exit, Layer, Stream } from "effect"
 import { testEffect } from "./lib/effect"
 
 const it = testEffect(
@@ -117,6 +119,8 @@ for (const fixture of [
           },
           retry: (_cause, _error, retry) =>
             Effect.succeed(retry ? { retry: true, attempt: 2, delay: 0 } : { retry: false }),
+          rotate: () => Effect.succeed(false),
+          recordUsage: () => Effect.void,
           recoverContinuation: true,
           recoverOverflow: Effect.succeed(false),
         })
@@ -158,3 +162,89 @@ for (const fixture of [
     }),
   )
 }
+
+it.effect("rotates a quota failure before output without a retry or a failed assistant", () =>
+  Effect.gen(function* () {
+    const db = (yield* Database.Service).db
+    const llm = yield* TestLLM.Test
+    const sessionID = Session.ID.create()
+    const assistantMessageID = SessionMessage.ID.create()
+    const steps = yield* SessionStep.make.pipe(
+      Effect.provide(
+        Layer.mock(Snapshot.Service)({
+          capture: () => Effect.succeed(Snapshot.ID.make("before")),
+          files: () => Effect.succeed([]),
+        }),
+      ),
+    )
+    yield* db
+      .insert(ProjectTable)
+      .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] })
+      .run()
+    yield* db
+      .insert(SessionTable)
+      .values({ id: sessionID, project_id: Project.ID.global, slug: "rotate", directory: "/project", version: "test" })
+      .run()
+    const model = {
+      ...SessionRunnerModel.resolved(
+        LanguageModel.make({ id: "test-model", provider: "test", route: OpenAIChat.route }),
+        {
+          capabilities: { tools: true, input: ["text"], output: ["text"] },
+          limit: { context: 100_000, output: 1_000 },
+          cost: [
+            {
+              input: Money.USDPerMillionTokens.make(1),
+              output: Money.USDPerMillionTokens.make(2),
+              cache: { read: Money.USDPerMillionTokens.make(0.1), write: Money.USDPerMillionTokens.make(0.5) },
+            },
+          ],
+        },
+      ),
+      credential: {
+        id: Credential.ID.make("cred_rotate"),
+        label: "Work",
+        integrationID: Integration.ID.make("anthropic"),
+      },
+    }
+    yield* llm.push(Stream.fail(new AIError({ reason: new QuotaExceededError({ message: "No quota" }) })))
+    let rotated = 0
+    const result = yield* steps
+      .attempt({
+        isLocationClosed: () => false,
+        sessionID,
+        assistantMessageID,
+        agent: Agent.defaultID,
+        model,
+        prepared: {
+          retry: () => Effect.void,
+          request: LLM.request({ model: model.model, prompt: "Hello" }),
+          options: {},
+          executeTool: () => Effect.succeed({ content: [] }),
+        },
+        retry: () => Effect.succeed({ retry: false }),
+        rotate: () =>
+          Effect.sync(() => {
+            rotated++
+            return true
+          }),
+        recordUsage: () => Effect.void,
+        recoverContinuation: true,
+        recoverOverflow: Effect.succeed(false),
+      })
+      .pipe(Effect.exit)
+    expect(Exit.isSuccess(result)).toBe(true)
+    if (Exit.isSuccess(result)) expect(result.value).toEqual(SessionStep.Outcome.RotateCredential())
+    expect(rotated).toBe(1)
+    const messages = yield* db.select().from(SessionMessageTable).all()
+    expect(messages).toHaveLength(0)
+    const events = yield* db
+      .select({ type: EventTable.type })
+      .from(EventTable)
+      .where(eq(EventTable.aggregate_id, sessionID))
+      .all()
+    const types = events.map((event) => event.type)
+    expect(types).not.toContain("session.retry.scheduled.1")
+    expect(types).not.toContain("session.step.failed.1")
+  }),
+)
+
