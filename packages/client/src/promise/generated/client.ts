@@ -1,4 +1,3 @@
-import type { CredentialQuota } from "@opencode/schema/credential-quota"
 import type {
   ServerInfoOutput,
   ServerPairOutput,
@@ -164,6 +163,11 @@ import type {
   CredentialActivateOutput,
   CredentialRemoveInput,
   CredentialRemoveOutput,
+  CredentialUsageOutput,
+  CredentialLimitInput,
+  CredentialLimitOutput,
+  CredentialUnblockInput,
+  CredentialUnblockOutput,
   ProjectListInput,
   ProjectListOutput,
   ProjectUpdateInput,
@@ -1530,15 +1534,12 @@ export function make(options: ClientOptions) {
           requestOptions,
         ),
       usage: (requestOptions?: RequestOptions) =>
-        request<CredentialQuota.Report>(
+        request<CredentialUsageOutput>(
           { method: "GET", path: `/api/usage`, successStatus: 200, declaredStatuses: [400, 401], empty: false },
           requestOptions,
         ),
-      limit: (
-        input: { credentialID: string; limit: CredentialQuota.Limit | null },
-        requestOptions?: RequestOptions,
-      ) =>
-        request<void>(
+      limit: (input: CredentialLimitInput, requestOptions?: RequestOptions) =>
+        request<CredentialLimitOutput>(
           {
             method: "PUT",
             path: `/api/credential/${encodeURIComponent(input.credentialID)}/limit`,
@@ -1549,8 +1550,8 @@ export function make(options: ClientOptions) {
           },
           requestOptions,
         ),
-      unblock: (input: { credentialID: string }, requestOptions?: RequestOptions) =>
-        request<void>(
+      unblock: (input: CredentialUnblockInput, requestOptions?: RequestOptions) =>
+        request<CredentialUnblockOutput>(
           {
             method: "DELETE",
             path: `/api/credential/${encodeURIComponent(input.credentialID)}/block`,

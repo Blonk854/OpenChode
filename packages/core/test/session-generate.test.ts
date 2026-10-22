@@ -15,6 +15,7 @@ import { OpenAIChat } from "@opencode/ai/protocols"
 import { TestLLM } from "@opencode/ai/testing"
 import type { StreamOptions } from "@opencode/ai/route"
 import { Agent } from "@opencode/core/agent"
+import { CredentialQuota } from "@opencode/core/credential/quota"
 import { Database } from "@opencode/core/database/database"
 import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
 import { llmClient } from "@opencode/core/effect/app-node-platform"
@@ -140,6 +141,7 @@ const tools = Layer.mock(Tool.Service, {
 const it = testEffect(
   AppNodeBuilder.build(
     LayerNode.group([
+      CredentialQuota.node,
       Database.node,
       Bus.node,
       Project.node,

@@ -268,6 +268,7 @@ const layer = Layer.effect(
     const jobs = yield* Job.Service
     const environments = yield* SessionEnvironment.Service
     const locations = yield* LocationServiceMap.Service
+    const quota = yield* CredentialQuota.Service
     const sessions = yield* Session.make()
     const isDurableSessionEvent = (item: Bus.LogItem): item is SessionEvent.DurableEvent =>
       Object.hasOwn(SessionEvent.Durable.cases, item.type)
@@ -451,6 +452,7 @@ const layer = Layer.effect(
           Effect.provideService(Instance.Service, instances),
           Effect.provideService(Database.Service, database),
           Effect.provideService(LLMClient.Service, llm),
+          Effect.provideService(CredentialQuota.Service, quota),
         )
       }),
       command: Effect.fn("Session.command")(function* (input) {

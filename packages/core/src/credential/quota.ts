@@ -1,7 +1,7 @@
 export * as CredentialQuota from "./quota.js"
 
 import { and, eq, inArray, sql } from "drizzle-orm"
-import { Clock, Context, Effect, FiberRef, Layer, Schema } from "effect"
+import { Clock, Context, Effect, Layer, Schema } from "effect"
 import { Credential } from "@opencode/schema/credential"
 import { Integration } from "@opencode/schema/integration"
 import type { TokenUsage } from "@opencode/schema/token-usage"
@@ -10,7 +10,9 @@ import { Database } from "../database/database.js"
 import { CredentialBlockTable, CredentialLimitTable, CredentialTable, CredentialUsageTable } from "./sql.js"
 import { CredentialQuotaRouter } from "./quota-router.js"
 
-export const Excluded = FiberRef.unsafeMake(new Set<string>())
+export const Excluded = Context.Reference<ReadonlySet<string>>("@opencode/CredentialQuota/Excluded", {
+  defaultValue: () => new Set<string>(),
+})
 
 export class MissingError extends Schema.TaggedError<MissingError>()("CredentialQuota.MissingError", {
   credentialID: Credential.ID,
@@ -180,7 +182,7 @@ const layer = Layer.effect(
       const accounts = candidates(rows)
       if (!CredentialQuotaRouter.rotates(integrationID, accounts)) return { mode: "passthrough" as const }
       const now = yield* Clock.currentTimeMillis
-      const exclude = yield* FiberRef.get(Excluded)
+      const exclude = yield* Excluded
       const state = yield* stateFor(rows, now)
       const selected = CredentialQuotaRouter.select({
         accounts,

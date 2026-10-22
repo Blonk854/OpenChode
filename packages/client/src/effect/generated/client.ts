@@ -1164,7 +1164,9 @@ const EndpointCredentialLimit = (raw: RawClient["server.credential"]) => (input:
 
 const EndpointCredentialUnblock = (raw: RawClient["server.credential"]) => (input: CredentialUnblockInput) =>
   preserveEffect<CredentialUnblockOutput>()(
-    raw["credential.unblock"]({ params: { credentialID: input["credentialID"] } }).pipe(Effect.mapError(mapClientError)),
+    raw["credential.unblock"]({ params: { credentialID: input["credentialID"] } }).pipe(
+      Effect.mapError(mapClientError),
+    ),
   )
 
 const adaptGroupCredential = (raw: RawClient["server.credential"]) => ({

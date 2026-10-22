@@ -2,7 +2,7 @@ export * as SessionRunnerLLM from "./llm.js"
 
 import { Message } from "@opencode/ai"
 import { and, desc, eq, inArray, sql } from "drizzle-orm"
-import { Cause, Effect, Exit, FiberMap, FiberRef, Layer } from "effect"
+import { Cause, Effect, Exit, FiberMap, Layer } from "effect"
 import { Credential } from "../../credential.js"
 import { CredentialQuota } from "../../credential/quota.js"
 import { Integration } from "../../integration.js"
@@ -177,7 +177,6 @@ const layer = Layer.effect(
                       onlyIfMissing: true,
                     })
                   if (promoted > 0) step = 1
-                  yield* FiberRef.set(CredentialQuota.Excluded, new Set())
                   return { _tag: "Ready" as const, context: yield* context.load(selected) }
                 }),
               )
@@ -214,11 +213,17 @@ const layer = Layer.effect(
       let recoverContinuation = true
       let excluded = new Set<string>()
       while (true) {
-        yield* FiberRef.set(CredentialQuota.Excluded, excluded)
         // Reuse boundary preparation once; retries refresh context without delivering more input.
-        const loaded = initial ?? (yield* prepareContext(sessionID).pipe(Effect.flatMap(context.load)))
+        const loaded =
+          initial ??
+          (yield* prepareContext(sessionID).pipe(
+            Effect.flatMap(context.load),
+            Effect.provideService(CredentialQuota.Excluded, excluded),
+          ))
         initial = undefined
-        const compacted = yield* compaction.compact({ reason: "auto", context: loaded })
+        const compacted = yield* compaction
+          .compact({ reason: "auto", context: loaded })
+          .pipe(Effect.provideService(CredentialQuota.Excluded, excluded))
         if (compacted.status === "failed") return yield* new StepFailedError({ error: compacted.error })
         if (compacted.status === "completed") {
           assistantMessageID = SessionMessage.ID.create()
@@ -275,8 +280,9 @@ const layer = Layer.effect(
               if (!(yield* quota.rotates(Integration.ID.make(input.integrationID)))) return false
               yield* quota.block(Credential.ID.make(input.id), input.retryAfterMs)
               excluded = new Set(excluded).add(input.id)
-              yield* FiberRef.set(CredentialQuota.Excluded, excluded)
-              const next = yield* quota.choose(Integration.ID.make(input.integrationID))
+              const next = yield* quota
+                .choose(Integration.ID.make(input.integrationID))
+                .pipe(Effect.provideService(CredentialQuota.Excluded, excluded))
               if (next.mode !== "selected") return false
               yield* Effect.logInfo("credential rotated", {
                 credentialID: input.id,

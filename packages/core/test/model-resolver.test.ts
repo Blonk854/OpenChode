@@ -13,6 +13,7 @@ import { Variant } from "@opencode/core/variant"
 import { ModelResolver } from "@opencode/core/model-resolver"
 import { AISDK } from "@opencode/core/aisdk"
 import { Npm } from "@opencode/util/npm"
+import { passthrough } from "./lib/credential-quota"
 import { it } from "./lib/effect"
 
 interface ModelOptions {
@@ -401,7 +402,9 @@ describe("ModelResolver", () => {
       },
       model: () => Effect.die("unused"),
     })
-    const layer = ModelResolver.layer.pipe(Layer.provide(Layer.mergeAll(providers, models, integrations, npm, aisdk)))
+    const layer = ModelResolver.layer.pipe(
+      Layer.provide(Layer.mergeAll(providers, models, integrations, npm, aisdk, passthrough)),
+    )
 
     return withConfigEnv({}, () =>
       Effect.gen(function* () {

@@ -7,7 +7,7 @@ import { classifyProviderFailure } from "@opencode/ai/provider-error"
 import { compileRequest } from "@opencode/ai/route/client"
 import { describe, expect } from "bun:test"
 // import { DateTime, Deferred, Effect, Schedule } from "effect"
-import { DateTime, Effect, Schedule } from "effect"
+import { DateTime, Effect, Layer, Schedule } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 import { exportJWK, generateKeyPair, SignJWT } from "jose"
 import { App } from "@opencode/core/app"
@@ -31,6 +31,7 @@ import { SessionModelTransport } from "@opencode/core/session/model-transport"
 import { SessionRunnerModel } from "@opencode/core/session/runner/model"
 import { SessionRunnerRetry } from "@opencode/core/session/runner/retry"
 import { toSessionError } from "@opencode/core/session/to-session-error"
+import { passthrough } from "../lib/credential-quota"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
@@ -1051,7 +1052,7 @@ describe("ChatGPTPlugin", () => {
         expect(yield* resolve(baseID)).toEqual({ type: "summary" })
         expect(yield* resolve(modelID)).toEqual({ type: "native" })
         expect(yield* resolve(variantID, Model.VariantID.make("high"))).toEqual({ type: "native" })
-      }).pipe(Effect.provide(ModelResolver.layer)),
+      }).pipe(Effect.provide(ModelResolver.layer.pipe(Layer.provide(passthrough)))),
     )
   }
 
@@ -1130,7 +1131,7 @@ describe("ChatGPTPlugin", () => {
             ],
           }[connection],
         )
-      }).pipe(Effect.provide(ModelResolver.layer)),
+      }).pipe(Effect.provide(ModelResolver.layer.pipe(Layer.provide(passthrough)))),
     )
   }
 

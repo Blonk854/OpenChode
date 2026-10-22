@@ -478,7 +478,7 @@ function ProviderConnection(props: {
     return existing.every((account) => account.method === "key")
   }
 
-  const quotaMetrics = ["requests", "tokens"] as const
+  const quotaMetrics: Array<"requests" | "tokens"> = ["requests", "tokens"]
 
   const activeAccount = () => state.activating ?? serverAccounts()[0]?.id
 

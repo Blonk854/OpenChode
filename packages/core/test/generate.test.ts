@@ -24,6 +24,7 @@ import { Npm } from "@opencode/util/npm"
 import { Effect, Exit, Fiber, Layer } from "effect"
 import { TestClock } from "effect/testing"
 import { HttpClient, HttpClientResponse } from "effect/http"
+import { passthrough } from "./lib/credential-quota"
 import { testEffect } from "./lib/effect"
 
 const selected = Info.make({
@@ -76,10 +77,14 @@ const aisdk = Layer.mock(AISDK.Service, {
 })
 const client = TestLLM.testLayer({ fallback: TestLLM.text("OK", "generate") })
 
-const resolver = ModelResolver.layer.pipe(Layer.provide(Layer.mergeAll(providers, models, integrations, npm, aisdk)))
-const it = testEffect(Generate.layer.pipe(Layer.provide(Layer.merge(resolver, client))))
+const resolver = ModelResolver.layer.pipe(
+  Layer.provide(Layer.mergeAll(providers, models, integrations, npm, aisdk, passthrough)),
+)
+const it = testEffect(Generate.layer.pipe(Layer.provide(Layer.mergeAll(resolver, client, passthrough))))
 const resolverIt = testEffect(resolver)
-const retryIt = testEffect(Generate.layer.pipe(Layer.provideMerge(Layer.merge(resolver, TestLLM.testLayer()))))
+const retryIt = testEffect(
+  Generate.layer.pipe(Layer.provideMerge(Layer.mergeAll(resolver, TestLLM.testLayer(), passthrough))),
+)
 
 it.effect("loads dynamic AI SDK models", () =>
   Effect.gen(function* () {
@@ -239,7 +244,7 @@ testEffect(Layer.empty).effect("attributes each stateless completion without cre
           }),
         ).toBe("OK")
       }
-    }).pipe(Effect.provide(Generate.layer.pipe(Layer.provide(Layer.merge(resolver, native)))))
+    }).pipe(Effect.provide(Generate.layer.pipe(Layer.provide(Layer.mergeAll(resolver, native, passthrough)))))
     expect(sessions).toHaveLength(2)
     expect(sessions[0]).toStartWith("ses_")
     expect(sessions[1]).not.toBe(sessions[0])

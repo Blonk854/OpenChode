@@ -13,6 +13,7 @@ import { expect } from "bun:test"
 import { Clock, Deferred, Effect, Fiber, Layer, Schedule, Stream } from "effect"
 import { TestClock } from "effect/testing"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
+import { passthrough } from "../lib/credential-quota"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
@@ -76,7 +77,7 @@ const fixture = Effect.gen(function* () {
       Effect.provide(LLMClient.layer.pipe(Layer.provide(RequestExecutor.layer), Layer.fresh)),
       Effect.provideService(HttpClient.HttpClient, http),
     )
-  }).pipe(Effect.provide(ModelResolver.layer))
+  }).pipe(Effect.provide(ModelResolver.layer.pipe(Layer.provide(passthrough))))
   return { requests, replies, integrations, credentials, status, connect, send }
 })
 

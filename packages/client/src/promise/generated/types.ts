@@ -246,6 +246,18 @@ export type McpResourceTemplate = {
 
 export type CredentialKey = { type: "key"; key: string; metadata?: { [x: string]: JsonValue } }
 
+export type CredentialQuotaMetric = "requests" | "tokens" | "usd"
+
+export type CredentialQuotaUsage = { requests: number; tokens: number; cost: number }
+
+export type CredentialQuotaModelUsage = {
+  providerID: string
+  modelID: string
+  requests: number
+  tokens: number
+  cost: number
+}
+
 export type ProjectVcs = string
 
 export type ProjectIcon = { url?: string; override?: string; color?: string }
@@ -724,6 +736,10 @@ export type McpServer = {
 }
 
 export type McpResourceCatalog = { resources: Array<McpResource>; templates: Array<McpResourceTemplate> }
+
+export type CredentialQuotaLimit = { metric: CredentialQuotaMetric; amount: number }
+
+export type CredentialQuotaCombined = { metric: CredentialQuotaMetric; used: number; limit: number; remaining: number }
 
 export type Project = {
   id: ProjectID
@@ -2004,6 +2020,16 @@ export type CredentialValue = CredentialOAuth | CredentialKey | CredentialExtern
 
 export type ConnectionInfo = ConnectionCredentialInfo | ConnectionEnvInfo
 
+export type CredentialQuotaAccount = {
+  id: CredentialID
+  label: string
+  limit?: CredentialQuotaLimit
+  used: CredentialQuotaUsage
+  remaining?: number
+  blockedUntil?: number
+  models: Array<CredentialQuotaModelUsage>
+}
+
 export type PtyCreated = {
   id: EventID
   created: number
@@ -2414,6 +2440,12 @@ export type CredentialEntry = {
   value: CredentialValue
 }
 
+export type CredentialQuotaProvider = {
+  integrationID: IntegrationID
+  accounts: Array<CredentialQuotaAccount>
+  combined: Array<CredentialQuotaCombined>
+}
+
 export type FormFields2 = [FormField1, ...Array<FormField1>]
 
 export type SessionsResponse = {
@@ -2472,6 +2504,8 @@ export type IntegrationOAuthMethod = { id: IntegrationMethodID; type: "oauth"; l
 export type IntegrationKeyMethod = { type: "key"; label?: string; form?: FormFields }
 
 export type IntegrationExternalMethod = { id: IntegrationMethodID; type: "external"; label: string; form?: FormFields }
+
+export type CredentialQuotaReport = { providers: Array<CredentialQuotaProvider> }
 
 export type FormInfo1 = { id: FormID; sessionID: string; title: string; metadata?: FormMetadata1; fields: FormFields2 }
 
@@ -2857,6 +2891,14 @@ export type McpServerNotFoundError = {
 }
 export const isMcpServerNotFoundError = (value: unknown): value is McpServerNotFoundError =>
   typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "McpServerNotFoundError"
+
+export type CredentialNotFoundError = {
+  readonly _tag: "CredentialNotFoundError"
+  readonly credentialID: string
+  readonly message: string
+}
+export const isCredentialNotFoundError = (value: unknown): value is CredentialNotFoundError =>
+  typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "CredentialNotFoundError"
 
 export type ProjectNotFoundError = {
   readonly _tag: "ProjectNotFoundError"
@@ -5054,19 +5096,37 @@ export type IntegrationConnectKeyInput = {
     readonly key: string
     readonly answer?: { readonly [x: string]: string | number | boolean | ReadonlyArray<string> } | undefined
     readonly label?: string | undefined
+    readonly activate?: boolean | undefined
+    readonly limit?: { readonly metric: "requests" | "tokens" | "usd"; readonly amount: number } | undefined
   }["key"]
   readonly answer?: {
     readonly key: string
     readonly answer?: { readonly [x: string]: string | number | boolean | ReadonlyArray<string> } | undefined
     readonly label?: string | undefined
+    readonly activate?: boolean | undefined
+    readonly limit?: { readonly metric: "requests" | "tokens" | "usd"; readonly amount: number } | undefined
   }["answer"]
   readonly label?: {
     readonly key: string
     readonly answer?: { readonly [x: string]: string | number | boolean | ReadonlyArray<string> } | undefined
     readonly label?: string | undefined
+    readonly activate?: boolean | undefined
+    readonly limit?: { readonly metric: "requests" | "tokens" | "usd"; readonly amount: number } | undefined
   }["label"]
-  readonly activate?: boolean
-  readonly limit?: { readonly metric: "requests" | "tokens" | "usd"; readonly amount: number }
+  readonly activate?: {
+    readonly key: string
+    readonly answer?: { readonly [x: string]: string | number | boolean | ReadonlyArray<string> } | undefined
+    readonly label?: string | undefined
+    readonly activate?: boolean | undefined
+    readonly limit?: { readonly metric: "requests" | "tokens" | "usd"; readonly amount: number } | undefined
+  }["activate"]
+  readonly limit?: {
+    readonly key: string
+    readonly answer?: { readonly [x: string]: string | number | boolean | ReadonlyArray<string> } | undefined
+    readonly label?: string | undefined
+    readonly activate?: boolean | undefined
+    readonly limit?: { readonly metric: "requests" | "tokens" | "usd"; readonly amount: number } | undefined
+  }["limit"]
 }
 
 export type IntegrationConnectKeyOutput = void
@@ -5363,6 +5423,21 @@ export type CredentialActivateOutput = void
 export type CredentialRemoveInput = { readonly credentialID: { readonly credentialID: string }["credentialID"] }
 
 export type CredentialRemoveOutput = void
+
+export type CredentialUsageOutput = CredentialQuotaReport
+
+export type CredentialLimitInput = {
+  readonly credentialID: { readonly credentialID: string }["credentialID"]
+  readonly limit: {
+    readonly limit: { readonly metric: "requests" | "tokens" | "usd"; readonly amount: number } | null
+  }["limit"]
+}
+
+export type CredentialLimitOutput = void
+
+export type CredentialUnblockInput = { readonly credentialID: { readonly credentialID: string }["credentialID"] }
+
+export type CredentialUnblockOutput = void
 
 export type ProjectListInput = { readonly archived?: { readonly archived?: boolean | undefined }["archived"] }
 

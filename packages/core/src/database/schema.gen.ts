@@ -38,6 +38,21 @@ const schema: Omit<DatabaseMigration.Migration, "id"> = {
         );
       `)
       yield* tx.run(`
+        CREATE TABLE \`credential_block\` (
+          \`credential_id\` text PRIMARY KEY,
+          \`until\` integer NOT NULL,
+          CONSTRAINT \`fk_credential_block_credential_id_credential_id_fk\` FOREIGN KEY (\`credential_id\`) REFERENCES \`credential\`(\`id\`) ON DELETE CASCADE
+        );
+      `)
+      yield* tx.run(`
+        CREATE TABLE \`credential_limit\` (
+          \`credential_id\` text PRIMARY KEY,
+          \`metric\` text NOT NULL,
+          \`amount\` real NOT NULL,
+          CONSTRAINT \`fk_credential_limit_credential_id_credential_id_fk\` FOREIGN KEY (\`credential_id\`) REFERENCES \`credential\`(\`id\`) ON DELETE CASCADE
+        );
+      `)
+      yield* tx.run(`
         CREATE TABLE \`credential\` (
           \`id\` text PRIMARY KEY,
           \`integration_id\` text,
@@ -51,14 +66,6 @@ const schema: Omit<DatabaseMigration.Migration, "id"> = {
         );
       `)
       yield* tx.run(`
-        CREATE TABLE \`credential_limit\` (
-          \`credential_id\` text PRIMARY KEY,
-          \`metric\` text NOT NULL,
-          \`amount\` real NOT NULL,
-          CONSTRAINT \`fk_credential_limit_credential_id_credential_id_fk\` FOREIGN KEY (\`credential_id\`) REFERENCES \`credential\`(\`id\`) ON DELETE CASCADE
-        );
-      `)
-      yield* tx.run(`
         CREATE TABLE \`credential_usage\` (
           \`credential_id\` text NOT NULL,
           \`month\` text NOT NULL,
@@ -69,13 +76,6 @@ const schema: Omit<DatabaseMigration.Migration, "id"> = {
           \`cost\` real DEFAULT 0 NOT NULL,
           CONSTRAINT \`credential_usage_pk\` PRIMARY KEY(\`credential_id\`, \`month\`, \`provider_id\`, \`model_id\`),
           CONSTRAINT \`fk_credential_usage_credential_id_credential_id_fk\` FOREIGN KEY (\`credential_id\`) REFERENCES \`credential\`(\`id\`) ON DELETE CASCADE
-        );
-      `)
-      yield* tx.run(`
-        CREATE TABLE \`credential_block\` (
-          \`credential_id\` text PRIMARY KEY,
-          \`until\` integer NOT NULL,
-          CONSTRAINT \`fk_credential_block_credential_id_credential_id_fk\` FOREIGN KEY (\`credential_id\`) REFERENCES \`credential\`(\`id\`) ON DELETE CASCADE
         );
       `)
       yield* tx.run(`

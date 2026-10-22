@@ -28,9 +28,9 @@ import type { Shell } from "@opencode/schema/shell"
 import type { Form } from "@opencode/schema/form"
 import type { Provider } from "@opencode/schema/provider"
 import type { Integration } from "@opencode/schema/integration"
+import type { CredentialQuota } from "@opencode/schema/credential-quota"
 import type { Mcp } from "@opencode/schema/mcp"
 import type { Credential } from "@opencode/schema/credential"
-import type { CredentialQuota } from "@opencode/schema/credential-quota"
 import type { PermissionSaved } from "@opencode/schema/permission-saved"
 import type { FileSystem } from "@opencode/schema/filesystem"
 import type { Command } from "@opencode/schema/command"
@@ -1717,7 +1717,10 @@ export type CredentialRemoveOperation<E = never> = (
 export type CredentialUsageOutput = CredentialQuota.Report
 export type CredentialUsageOperation<E = never> = () => Effect.Effect<CredentialUsageOutput, E>
 
-export type CredentialLimitInput = { readonly credentialID: Credential.ID; readonly limit: CredentialQuota.Limit | null }
+export type CredentialLimitInput = {
+  readonly credentialID: Credential.ID
+  readonly limit: CredentialQuota.Limit | null
+}
 export type CredentialLimitOutput = void
 export type CredentialLimitOperation<E = never> = (
   input: CredentialLimitInput,

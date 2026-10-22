@@ -19,6 +19,7 @@ import { Effect, Layer, Schedule, Stream } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 import { Socket } from "effect/socket"
 import { withEnv } from "../fixture/env"
+import { passthrough } from "../lib/credential-quota"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
@@ -89,7 +90,10 @@ const fixture = Effect.fn(function* () {
       Effect.provide(LLMClient.layer.pipe(Layer.provide(RequestExecutor.layer), Layer.fresh)),
       Effect.provideService(HttpClient.HttpClient, http),
     )
-  }).pipe(Effect.provide(SessionModelRequest.layer), Effect.provide(ModelResolver.layer))
+  }).pipe(
+    Effect.provide(SessionModelRequest.layer),
+    Effect.provide(ModelResolver.layer.pipe(Layer.provide(passthrough))),
+  )
   const stop = Effect.gen(function* () {
     replies.push(Response.json({ message: "Conversation complete", error: {} }, { status: 400 }))
     expect((yield* send).find((event) => event.type === "finish")?.reason.normalized).toBe("stop")
