@@ -28,6 +28,10 @@ if (tailwindGenerate && typeof tailwindHotUpdate === "function") {
 // `import "marked"` in mermaid's chunk that the browser cannot resolve from this package.
 const workerDeps = ["@pierre/highlights", "marked", "remend"]
 
+// `@pierre/highlights/themes/loader` is not the excluded id, so a pre-bundled chunk keeps the bare
+// import and the dev overlay cannot resolve it.
+const isWorkerDep = (id) => workerDeps.some((dep) => id === dep || id.startsWith(`${dep}/`))
+
 // The Office previews load their wasm and fonts through `new URL(..., import.meta.url)`, which a pre-bundle would move
 // away from the files.
 const officeDeps = ["@betteroffice/docx", "@betteroffice/fonts", "@betteroffice/pptx", "@betteroffice/xlsx"]
@@ -62,7 +66,7 @@ const dropUnloadedOfficeFiles = {
 const bundleNestedWorkerDeps = {
   name: "opencode-desktop:bundle-nested-worker-deps",
   resolveId(id, importer) {
-    if (!importer || !workerDeps.includes(id) || !importer.includes("node_modules")) return
+    if (!importer || !isWorkerDep(id) || !importer.includes("node_modules")) return
 
     try {
       return createRequire(importer).resolve(id)
