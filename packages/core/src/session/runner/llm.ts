@@ -5,6 +5,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm"
 import { Cause, Effect, Exit, FiberMap, Layer } from "effect"
 import { Credential } from "../../credential.js"
 import { CredentialQuota } from "../../credential/quota.js"
+import { saveObserved } from "../../credential/observe-window.js"
 import { Integration } from "../../integration.js"
 import { Database } from "../../database/database.js"
 import { Bus } from "../../bus.js"
@@ -303,6 +304,7 @@ const layer = Layer.effect(
               succeeded,
             })
           },
+          recordWindow: saveObserved(quota, loaded.model),
         })
         const completed = yield* SessionStep.Outcome.$match(outcome, {
           Completed: (outcome) => Effect.succeed(outcome.needsContinuation),

@@ -170,6 +170,7 @@ import type {
   CredentialRemoveInput,
   CredentialRemoveOutput,
   CredentialUsageOutput,
+  CredentialRefreshOutput,
   CredentialLimitInput,
   CredentialLimitOutput,
   CredentialUnblockInput,
@@ -1154,6 +1155,9 @@ const EndpointCredentialRemove = (raw: RawClient["server.credential"]) => (input
 const EndpointCredentialUsage = (raw: RawClient["server.credential"]) => () =>
   preserveEffect<CredentialUsageOutput>()(raw["credential.usage"]({}).pipe(Effect.mapError(mapClientError)))
 
+const EndpointCredentialRefresh = (raw: RawClient["server.credential"]) => () =>
+  preserveEffect<CredentialRefreshOutput>()(raw["credential.refresh"]({}).pipe(Effect.mapError(mapClientError)))
+
 const EndpointCredentialLimit = (raw: RawClient["server.credential"]) => (input: CredentialLimitInput) =>
   preserveEffect<CredentialLimitOutput>()(
     raw["credential.limit"]({
@@ -1176,6 +1180,7 @@ const adaptGroupCredential = (raw: RawClient["server.credential"]) => ({
   activate: EndpointCredentialActivate(raw),
   remove: EndpointCredentialRemove(raw),
   usage: EndpointCredentialUsage(raw),
+  refresh: EndpointCredentialRefresh(raw),
   limit: EndpointCredentialLimit(raw),
   unblock: EndpointCredentialUnblock(raw),
 })

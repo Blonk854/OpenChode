@@ -73,6 +73,46 @@ describe("CredentialQuota", () => {
     }),
   )
 
+  it.effect("stores a rate-limit window and leaves the secret out of the report", () =>
+    Effect.gen(function* () {
+      const credentials = yield* Credential.Service
+      const quota = yield* CredentialQuota.Service
+      yield* TestClock.setTime(Date.UTC(2026, 9, 23, 12))
+      const created = yield* credentials.create({
+        integrationID: Integration.ID.make("openai"),
+        label: "Primary",
+        value: Credential.Key.make({ type: "key", key: "sk-secret-value" }),
+      })
+      yield* quota.record({
+        credentialID: created.id,
+        providerID: "openai",
+        modelID: "gpt-5",
+        usage,
+        succeeded: true,
+      })
+      yield* quota.observe({
+        credentialID: created.id,
+        providerID: "openai",
+        modelID: "gpt-5",
+        window: {
+          limit: { requests: "60" },
+          remaining: { requests: "59" },
+          reset: { requests: "6s" },
+        },
+      })
+      const report = yield* quota.report()
+      expect(JSON.stringify(report)).not.toContain("sk-secret-value")
+      const account = report.providers[0]?.accounts[0]
+      expect(account?.window).toEqual({
+        limit: { requests: "60" },
+        remaining: { requests: "59" },
+        reset: { requests: "6s" },
+        observedAt: Date.UTC(2026, 9, 23, 12),
+      })
+      expect(account?.models[0]?.window).toEqual(account?.window)
+    }),
+  )
+
   it.effect("rejects a dollar limit on an unsupported provider", () =>
     Effect.gen(function* () {
       const credentials = yield* Credential.Service

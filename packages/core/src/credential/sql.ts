@@ -47,3 +47,33 @@ export const CredentialBlockTable = sqliteTable("credential_block", {
     .references(() => CredentialTable.id, { onDelete: "cascade" }),
   until: integer().notNull(),
 })
+
+export const CredentialWindowTable = sqliteTable(
+  "credential_window",
+  {
+    credential_id: text()
+      .$type<Credential.ID>()
+      .notNull()
+      .references(() => CredentialTable.id, { onDelete: "cascade" }),
+    provider_id: text().notNull(),
+    model_id: text().notNull(),
+    observed_at: integer().notNull(),
+    limit: text({ mode: "json" }).$type<Record<string, string> | null>(),
+    remaining: text({ mode: "json" }).$type<Record<string, string> | null>(),
+    reset: text({ mode: "json" }).$type<Record<string, string> | null>(),
+  },
+  (table) => [primaryKey({ columns: [table.credential_id, table.provider_id, table.model_id] })],
+)
+
+export const CredentialSnapshotTable = sqliteTable("credential_snapshot", {
+  credential_id: text()
+    .$type<Credential.ID>()
+    .primaryKey()
+    .references(() => CredentialTable.id, { onDelete: "cascade" }),
+  observed_at: integer().notNull(),
+  catalog: text({ mode: "json" }).$type<CredentialQuota.CatalogModel[] | null>(),
+  credit_limit: real(),
+  credit_remaining: real(),
+  credit_usage: real(),
+  error: text(),
+})

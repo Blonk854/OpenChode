@@ -53,6 +53,18 @@ const schema: Omit<DatabaseMigration.Migration, "id"> = {
         );
       `)
       yield* tx.run(`
+        CREATE TABLE \`credential_snapshot\` (
+          \`credential_id\` text PRIMARY KEY,
+          \`observed_at\` integer NOT NULL,
+          \`catalog\` text,
+          \`credit_limit\` real,
+          \`credit_remaining\` real,
+          \`credit_usage\` real,
+          \`error\` text,
+          CONSTRAINT \`fk_credential_snapshot_credential_id_credential_id_fk\` FOREIGN KEY (\`credential_id\`) REFERENCES \`credential\`(\`id\`) ON DELETE CASCADE
+        );
+      `)
+      yield* tx.run(`
         CREATE TABLE \`credential\` (
           \`id\` text PRIMARY KEY,
           \`integration_id\` text,
@@ -76,6 +88,19 @@ const schema: Omit<DatabaseMigration.Migration, "id"> = {
           \`cost\` real DEFAULT 0 NOT NULL,
           CONSTRAINT \`credential_usage_pk\` PRIMARY KEY(\`credential_id\`, \`month\`, \`provider_id\`, \`model_id\`),
           CONSTRAINT \`fk_credential_usage_credential_id_credential_id_fk\` FOREIGN KEY (\`credential_id\`) REFERENCES \`credential\`(\`id\`) ON DELETE CASCADE
+        );
+      `)
+      yield* tx.run(`
+        CREATE TABLE \`credential_window\` (
+          \`credential_id\` text NOT NULL,
+          \`provider_id\` text NOT NULL,
+          \`model_id\` text NOT NULL,
+          \`observed_at\` integer NOT NULL,
+          \`limit\` text,
+          \`remaining\` text,
+          \`reset\` text,
+          CONSTRAINT \`credential_window_pk\` PRIMARY KEY(\`credential_id\`, \`provider_id\`, \`model_id\`),
+          CONSTRAINT \`fk_credential_window_credential_id_credential_id_fk\` FOREIGN KEY (\`credential_id\`) REFERENCES \`credential\`(\`id\`) ON DELETE CASCADE
         );
       `)
       yield* tx.run(`

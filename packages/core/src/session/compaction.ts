@@ -22,6 +22,7 @@ import { Context, Effect, Layer, Result, Stream } from "effect"
 import { Agent } from "../agent.js"
 import { Bus } from "../bus.js"
 import { CredentialQuota } from "../credential/quota.js"
+import { observeWindow, saveObserved } from "../credential/observe-window.js"
 import { Database } from "../database/database.js"
 import { llmClient } from "../effect/app-node-platform.js"
 import { Model } from "../model.js"
@@ -533,7 +534,8 @@ export const layer = Layer.effect(
       const sessionID = context.session.id
       const unusable = (error: SessionError.Error) => Effect.fail<Failure>({ error })
 
-      return llm.stream(request, options).pipe(
+      return observeWindow(
+        llm.stream(request, options).pipe(
         Stream.runFoldEffect(
           (): Streamed => ({ text: "" }),
           (streamed, event): Effect.Effect<Streamed, AIError | Failure> => {
@@ -588,6 +590,8 @@ export const layer = Layer.effect(
             }
           },
         ),
+        ),
+        saveObserved(quota, context.model),
       )
     }
 

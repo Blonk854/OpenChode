@@ -250,13 +250,21 @@ export type CredentialQuotaMetric = "requests" | "tokens" | "usd"
 
 export type CredentialQuotaUsage = { requests: number; tokens: number; cost: number }
 
-export type CredentialQuotaModelUsage = {
-  providerID: string
-  modelID: string
-  requests: number
-  tokens: number
-  cost: number
+export type CredentialQuotaWindow = {
+  limit?: { [x: string]: string }
+  remaining?: { [x: string]: string }
+  reset?: { [x: string]: string }
+  observedAt: number
 }
+
+export type CredentialQuotaCatalogModel = {
+  id: string
+  name: string
+  inputTokenLimit?: number
+  outputTokenLimit?: number
+}
+
+export type CredentialQuotaCredit = { limit?: number; remaining?: number; usage?: number }
 
 export type ProjectVcs = string
 
@@ -740,6 +748,17 @@ export type McpResourceCatalog = { resources: Array<McpResource>; templates: Arr
 export type CredentialQuotaLimit = { metric: CredentialQuotaMetric; amount: number }
 
 export type CredentialQuotaCombined = { metric: CredentialQuotaMetric; used: number; limit: number; remaining: number }
+
+export type CredentialQuotaModelUsage = {
+  providerID: string
+  modelID: string
+  requests: number
+  tokens: number
+  cost: number
+  window?: CredentialQuotaWindow
+  inputTokenLimit?: number
+  outputTokenLimit?: number
+}
 
 export type Project = {
   id: ProjectID
@@ -2027,6 +2046,10 @@ export type CredentialQuotaAccount = {
   used: CredentialQuotaUsage
   remaining?: number
   blockedUntil?: number
+  window?: CredentialQuotaWindow
+  catalog?: Array<CredentialQuotaCatalogModel>
+  credit?: CredentialQuotaCredit
+  snapshotError?: string
   models: Array<CredentialQuotaModelUsage>
 }
 
@@ -5425,6 +5448,8 @@ export type CredentialRemoveInput = { readonly credentialID: { readonly credenti
 export type CredentialRemoveOutput = void
 
 export type CredentialUsageOutput = CredentialQuotaReport
+
+export type CredentialRefreshOutput = CredentialQuotaReport
 
 export type CredentialLimitInput = {
   readonly credentialID: { readonly credentialID: string }["credentialID"]

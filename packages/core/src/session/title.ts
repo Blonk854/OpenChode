@@ -7,6 +7,7 @@ import { Context, DateTime, Effect, Layer, Stream } from "effect"
 import { Database } from "../database/database.js"
 import { Bus } from "../bus.js"
 import { CredentialQuota } from "../credential/quota.js"
+import { observeWindow, saveObserved } from "../credential/observe-window.js"
 import { makeLocationNode } from "@opencode/util/effect/app-node"
 import { isExactRootFallback } from "@opencode/util/session-title-fallback"
 import { llmClient } from "../effect/app-node-platform.js"
@@ -88,22 +89,25 @@ export const layer = Layer.effect(
         messages: [Message.user(input.text)],
       })
       if (prepared.event.result !== undefined) return prepared.event.result
-      yield* llm.stream(prepared.request, prepared.options).pipe(
-        Stream.runForEach((event) => {
-          if (LLMEvent.is.providerError(event)) failed = true
-          if (LLMEvent.is.textDelta(event)) chunks.push(event.text)
-          if (LLMEvent.is.stepFinish(event)) {
-            const step = SessionUsage.record(event.usage, input.model.cost)
-            usage = usage ? SessionUsage.add(usage, step) : step
-          }
-          return Effect.void
-        }),
-        Effect.catchTag("AI.Error", () =>
-          Effect.sync(() => {
-            failed = true
+      yield* observeWindow(
+        llm.stream(prepared.request, prepared.options).pipe(
+          Stream.runForEach((event) => {
+            if (LLMEvent.is.providerError(event)) failed = true
+            if (LLMEvent.is.textDelta(event)) chunks.push(event.text)
+            if (LLMEvent.is.stepFinish(event)) {
+              const step = SessionUsage.record(event.usage, input.model.cost)
+              usage = usage ? SessionUsage.add(usage, step) : step
+            }
+            return Effect.void
           }),
+          Effect.catchTag("AI.Error", () =>
+            Effect.sync(() => {
+              failed = true
+            }),
+          ),
+          Effect.onInterrupt(() => recordUsage.pipe(Effect.asVoid)),
         ),
-        Effect.onInterrupt(() => recordUsage.pipe(Effect.asVoid)),
+        saveObserved(quota, input.model),
       )
       yield* recordUsage
       if (failed) return

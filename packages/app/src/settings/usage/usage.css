@@ -1,0 +1,70 @@
+.settings-usage-summary,
+.settings-usage-note,
+.settings-usage-window,
+.settings-usage-error {
+  margin: 0;
+}
+
+.settings-usage-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-usage-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--v2-background-bg-layer-01);
+}
+
+.settings-usage-card-title {
+  margin: 0;
+}
+
+.settings-usage-meter {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--v2-background-bg-base);
+}
+
+.settings-usage-meter > span {
+  display: block;
+  height: 100%;
+  background: var(--v2-background-bg-contrast);
+}
+
+.settings-usage-table-wrap {
+  overflow-x: auto;
+}
+
+.settings-usage-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.settings-usage-table th,
+.settings-usage-table td {
+  padding: 6px 8px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--v2-border-border-muted);
+}
+
+.settings-usage-table th {
+  font-weight: 500;
+}
+
+.settings-usage-limit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-usage-link {
+  color: inherit;
+}

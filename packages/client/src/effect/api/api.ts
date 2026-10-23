@@ -1717,6 +1717,9 @@ export type CredentialRemoveOperation<E = never> = (
 export type CredentialUsageOutput = CredentialQuota.Report
 export type CredentialUsageOperation<E = never> = () => Effect.Effect<CredentialUsageOutput, E>
 
+export type CredentialRefreshOutput = CredentialQuota.Report
+export type CredentialRefreshOperation<E = never> = () => Effect.Effect<CredentialRefreshOutput, E>
+
 export type CredentialLimitInput = {
   readonly credentialID: Credential.ID
   readonly limit: CredentialQuota.Limit | null
@@ -1739,6 +1742,7 @@ export interface CredentialApi<E = never> {
   readonly activate: CredentialActivateOperation<E>
   readonly remove: CredentialRemoveOperation<E>
   readonly usage: CredentialUsageOperation<E>
+  readonly refresh: CredentialRefreshOperation<E>
   readonly limit: CredentialLimitOperation<E>
   readonly unblock: CredentialUnblockOperation<E>
 }

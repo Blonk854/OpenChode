@@ -161,6 +161,7 @@ const run = (snapshots: Layer.Layer<Snapshot.Service>) =>
           retry: () => Effect.succeed({ retry: false as const }),
           rotate: () => Effect.succeed(false),
           recordUsage: () => Effect.void,
+          recordWindow: () => Effect.void,
           recoverContinuation: false,
           recoverOverflow: Effect.succeed(false),
         })

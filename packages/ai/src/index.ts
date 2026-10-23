@@ -114,6 +114,7 @@ export type {
   ToolToModelOutput,
 } from "./tool.js"
 export * as LLM from "./llm.js"
+export { RateLimitObservation, type RateLimitSlot } from "./route/rate-limit-observation.js"
 export type {
   Definition as ProviderDefinition,
   LanguageModelFactory as ProviderLanguageModelFactory,

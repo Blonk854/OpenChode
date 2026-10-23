@@ -5,6 +5,7 @@ import { LLMClient, Message, type AIError } from "@opencode/ai"
 import { Effect } from "effect"
 import { Database } from "../database/database.js"
 import { CredentialQuota } from "../credential/quota.js"
+import { observeWindow, saveObserved } from "../credential/observe-window.js"
 import { Instance } from "../instance/service.js"
 import { Plugin } from "../plugin/service.js"
 import type { Instructions } from "../instructions/index.js"
@@ -64,7 +65,10 @@ export const generate = Effect.fn("SessionGenerate.generate")(function* (input: 
       providerID: model.ref.providerID,
       modelID: model.ref.id,
     })
-    const response = yield* llm.generate(prepared.request, prepared.options).pipe(ModelRetry.retry)
+    const response = yield* observeWindow(
+      llm.generate(prepared.request, prepared.options).pipe(ModelRetry.retry),
+      saveObserved(quota, model),
+    )
     const credential = model.credential
     if (credential)
       yield* quota.record({

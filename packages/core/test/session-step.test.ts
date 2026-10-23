@@ -121,6 +121,7 @@ for (const fixture of [
             Effect.succeed(retry ? { retry: true, attempt: 2, delay: 0 } : { retry: false }),
           rotate: () => Effect.succeed(false),
           recordUsage: () => Effect.void,
+          recordWindow: () => Effect.void,
           recoverContinuation: true,
           recoverOverflow: Effect.succeed(false),
         })
@@ -228,6 +229,7 @@ it.effect("rotates a quota failure before output without a retry or a failed ass
             return true
           }),
         recordUsage: () => Effect.void,
+        recordWindow: () => Effect.void,
         recoverContinuation: true,
         recoverOverflow: Effect.succeed(false),
       })

@@ -1,14 +1,22 @@
 export * as CredentialQuota from "./quota.js"
 
 import { and, eq, inArray, sql } from "drizzle-orm"
-import { Clock, Context, Effect, Layer, Schema } from "effect"
+import { Clock, Context, Effect, Layer, Result, Schema } from "effect"
 import { Credential } from "@opencode/schema/credential"
 import { Integration } from "@opencode/schema/integration"
 import type { TokenUsage } from "@opencode/schema/token-usage"
 import { makeGlobalNode } from "@opencode/util/effect/app-node"
 import { Database } from "../database/database.js"
-import { CredentialBlockTable, CredentialLimitTable, CredentialTable, CredentialUsageTable } from "./sql.js"
+import {
+  CredentialBlockTable,
+  CredentialLimitTable,
+  CredentialSnapshotTable,
+  CredentialTable,
+  CredentialUsageTable,
+  CredentialWindowTable,
+} from "./sql.js"
 import { CredentialQuotaRouter } from "./quota-router.js"
+import { googleCatalog, googlePageToken, openRouterCredit } from "./provider-snapshot.js"
 
 export const Excluded = Context.Reference<ReadonlySet<string>>("@opencode/CredentialQuota/Excluded", {
   defaultValue: () => new Set<string>(),
@@ -59,10 +67,34 @@ export interface Interface {
     readonly usage: RecordedUsage
     readonly succeeded: boolean
   }) => Effect.Effect<void>
+  readonly observe: (input: {
+    readonly credentialID: Credential.ID
+    readonly providerID: string
+    readonly modelID: string
+    readonly window: {
+      readonly limit?: Record<string, string>
+      readonly remaining?: Record<string, string>
+      readonly reset?: Record<string, string>
+    }
+  }) => Effect.Effect<void>
+  readonly refresh: () => Effect.Effect<void>
   readonly report: () => Effect.Effect<CredentialQuotaReport>
 }
 
 type CredentialQuotaLimit = { readonly metric: "requests" | "tokens" | "usd"; readonly amount: number }
+type QuotaWindow = {
+  readonly limit?: Record<string, string>
+  readonly remaining?: Record<string, string>
+  readonly reset?: Record<string, string>
+  readonly observedAt: number
+}
+type QuotaCatalogModel = {
+  readonly id: string
+  readonly name: string
+  readonly inputTokenLimit?: number
+  readonly outputTokenLimit?: number
+}
+type QuotaCredit = { readonly limit?: number; readonly remaining?: number; readonly usage?: number }
 type CredentialQuotaReport = {
   readonly providers: ReadonlyArray<{
     readonly integrationID: Integration.ID
@@ -73,12 +105,19 @@ type CredentialQuotaReport = {
       readonly used: { readonly requests: number; readonly tokens: number; readonly cost: number }
       readonly remaining?: number
       readonly blockedUntil?: number
+      readonly window?: QuotaWindow
+      readonly catalog?: ReadonlyArray<QuotaCatalogModel>
+      readonly credit?: QuotaCredit
+      readonly snapshotError?: string
       readonly models: ReadonlyArray<{
         readonly providerID: string
         readonly modelID: string
         readonly requests: number
         readonly tokens: number
         readonly cost: number
+        readonly window?: QuotaWindow
+        readonly inputTokenLimit?: number
+        readonly outputTokenLimit?: number
       }>
     }>
     readonly combined: ReadonlyArray<{
@@ -94,6 +133,145 @@ export class Service extends Context.Service<Service, Interface>()("@opencode/Cr
 
 const tokenTotal = (usage: TokenUsage.Info) =>
   usage.input + usage.output + usage.reasoning + usage.cache.read + usage.cache.write
+
+const definedMap = (value: Record<string, string> | null | undefined) => {
+  if (!value || Object.keys(value).length === 0) return undefined
+  return value
+}
+
+const quotaWindow = (row: {
+  readonly limit: Record<string, string> | null
+  readonly remaining: Record<string, string> | null
+  readonly reset: Record<string, string> | null
+  readonly observed_at: number
+}) => {
+  const limit = definedMap(row.limit)
+  const remaining = definedMap(row.remaining)
+  const reset = definedMap(row.reset)
+  if (!limit && !remaining && !reset) return undefined
+  return {
+    ...(limit ? { limit } : {}),
+    ...(remaining ? { remaining } : {}),
+    ...(reset ? { reset } : {}),
+    observedAt: row.observed_at,
+  } satisfies QuotaWindow
+}
+
+const fetchJson = (url: string, headers: Record<string, string>, label: string) =>
+  Effect.gen(function* () {
+    const response = yield* Effect.tryPromise({
+      try: () => fetch(url, { headers }),
+      catch: () => new Error(`${label} could not be reached`),
+    })
+    if (!response.ok) return yield* Effect.fail(new Error(`${label} returned HTTP ${response.status}`))
+    return yield* Effect.tryPromise({
+      try: () => response.json() as Promise<unknown>,
+      catch: () => new Error(`${label} returned an unreadable response`),
+    })
+  })
+
+const readGoogle = (
+  key: string,
+  pageToken?: string,
+  pages: readonly unknown[] = [],
+): Effect.Effect<readonly QuotaCatalogModel[], Error> =>
+  Effect.gen(function* () {
+    if (pages.length >= 5) return googleCatalog(pages)
+    const url = new URL("https://generativelanguage.googleapis.com/v1beta/models")
+    url.searchParams.set("pageSize", "1000")
+    if (pageToken) url.searchParams.set("pageToken", pageToken)
+    const body = yield* fetchJson(url.toString(), { "x-goog-api-key": key }, "Google model list")
+    const collected = [...pages, body]
+    const next = googlePageToken(body)
+    if (!next) return googleCatalog(collected)
+    return yield* readGoogle(key, next, collected)
+  })
+
+const readOpenRouter = (key: string) =>
+  fetchJson("https://openrouter.ai/api/v1/key", { authorization: `Bearer ${key}` }, "OpenRouter key").pipe(
+    Effect.map(openRouterCredit),
+  )
+
+const creditFrom = (
+  snapshot:
+    | {
+        readonly credit_limit: number | null
+        readonly credit_remaining: number | null
+        readonly credit_usage: number | null
+      }
+    | undefined,
+) => {
+  if (!snapshot) return undefined
+  const limit = snapshot.credit_limit ?? undefined
+  const remaining = snapshot.credit_remaining ?? undefined
+  const usage = snapshot.credit_usage ?? undefined
+  if (limit === undefined && remaining === undefined && usage === undefined) return undefined
+  return {
+    ...(limit === undefined ? {} : { limit }),
+    ...(remaining === undefined ? {} : { remaining }),
+    ...(usage === undefined ? {} : { usage }),
+  } satisfies QuotaCredit
+}
+
+const accountModels = (
+  integrationID: string,
+  usage: ReadonlyArray<{
+    readonly provider_id: string
+    readonly model_id: string
+    readonly requests: number
+    readonly tokens: number
+    readonly cost: number
+  }>,
+  windows: ReadonlyArray<{
+    readonly provider_id: string
+    readonly model_id: string
+    readonly limit: Record<string, string> | null
+    readonly remaining: Record<string, string> | null
+    readonly reset: Record<string, string> | null
+    readonly observed_at: number
+  }>,
+  catalog: readonly QuotaCatalogModel[],
+) => {
+  const listed = usage.map((row) => {
+    const window = quotaWindow(
+      windows.find((item) => item.provider_id === row.provider_id && item.model_id === row.model_id) ?? {
+        limit: null,
+        remaining: null,
+        reset: null,
+        observed_at: 0,
+      },
+    )
+    const match = catalog.find((item) => item.id === row.model_id)
+    return {
+      providerID: row.provider_id,
+      modelID: row.model_id,
+      requests: row.requests,
+      tokens: row.tokens,
+      cost: row.cost,
+      ...(window ? { window } : {}),
+      ...(match?.inputTokenLimit === undefined ? {} : { inputTokenLimit: match.inputTokenLimit }),
+      ...(match?.outputTokenLimit === undefined ? {} : { outputTokenLimit: match.outputTokenLimit }),
+    }
+  })
+  const seen = new Set(listed.map((model) => model.modelID))
+  return [
+    ...listed,
+    ...catalog.flatMap((item) => {
+      if (seen.has(item.id)) return []
+      return [
+        {
+          providerID: integrationID,
+          modelID: item.id,
+          requests: 0,
+          tokens: 0,
+          cost: 0,
+          ...(item.inputTokenLimit === undefined ? {} : { inputTokenLimit: item.inputTokenLimit }),
+          ...(item.outputTokenLimit === undefined ? {} : { outputTokenLimit: item.outputTokenLimit }),
+        },
+      ]
+    }),
+  ]
+}
 
 const usedAmount = (
   metric: "requests" | "tokens" | "usd",
@@ -204,6 +382,38 @@ const layer = Layer.effect(
       return { mode: "selected" as const, id: row.id, label: row.label, value: row.value }
     })
 
+    const writeSnapshot = Effect.fn("CredentialQuota.writeSnapshot")(function* (input: {
+      readonly credentialID: Credential.ID
+      readonly catalog: readonly QuotaCatalogModel[] | null
+      readonly credit: QuotaCredit | undefined
+      readonly error: string | null
+    }) {
+      const now = yield* Clock.currentTimeMillis
+      const catalog = input.catalog === null ? null : [...input.catalog]
+      const credit = {
+        credit_limit: input.credit?.limit ?? null,
+        credit_remaining: input.credit?.remaining ?? null,
+        credit_usage: input.credit?.usage ?? null,
+      }
+      yield* db
+        .insert(CredentialSnapshotTable)
+        .values({
+          credential_id: input.credentialID,
+          observed_at: now,
+          catalog,
+          ...credit,
+          error: input.error,
+        })
+        .onConflictDoUpdate({
+          target: CredentialSnapshotTable.credential_id,
+          set: input.error
+            ? { observed_at: now, error: input.error }
+            : { observed_at: now, catalog, ...credit, error: null },
+        })
+        .run()
+        .pipe(Effect.orDie)
+    })
+
     return Service.of({
       choose,
       rotates: Effect.fn("CredentialQuota.rotates")(function* (integrationID) {
@@ -293,6 +503,86 @@ const layer = Layer.effect(
           .run()
           .pipe(Effect.orDie)
       }),
+      observe: Effect.fn("CredentialQuota.observe")(function* (input) {
+        const limit = definedMap(input.window.limit)
+        const remaining = definedMap(input.window.remaining)
+        const reset = definedMap(input.window.reset)
+        if (!limit && !remaining && !reset) return
+        const now = yield* Clock.currentTimeMillis
+        yield* db
+          .insert(CredentialWindowTable)
+          .values({
+            credential_id: input.credentialID,
+            provider_id: input.providerID,
+            model_id: input.modelID,
+            observed_at: now,
+            limit: limit ?? null,
+            remaining: remaining ?? null,
+            reset: reset ?? null,
+          })
+          .onConflictDoUpdate({
+            target: [
+              CredentialWindowTable.credential_id,
+              CredentialWindowTable.provider_id,
+              CredentialWindowTable.model_id,
+            ],
+            set: {
+              observed_at: now,
+              limit: limit ?? null,
+              remaining: remaining ?? null,
+              reset: reset ?? null,
+            },
+          })
+          .run()
+          .pipe(Effect.orDie)
+      }),
+      refresh: Effect.fn("CredentialQuota.refresh")(function* () {
+        const rows = yield* db.select().from(CredentialTable).all().pipe(Effect.orDie)
+        yield* Effect.forEach(
+          rows,
+          (row) =>
+            Effect.gen(function* () {
+              if (row.value.type !== "key") return
+              if (row.integration_id === "google") {
+                const result = yield* Effect.result(readGoogle(row.value.key))
+                if (Result.isFailure(result)) {
+                  yield* writeSnapshot({
+                    credentialID: row.id,
+                    catalog: null,
+                    credit: undefined,
+                    error: result.failure.message,
+                  })
+                  return
+                }
+                yield* writeSnapshot({
+                  credentialID: row.id,
+                  catalog: result.success,
+                  credit: undefined,
+                  error: null,
+                })
+                return
+              }
+              if (row.integration_id !== "openrouter") return
+              const result = yield* Effect.result(readOpenRouter(row.value.key))
+              if (Result.isFailure(result)) {
+                yield* writeSnapshot({
+                  credentialID: row.id,
+                  catalog: null,
+                  credit: undefined,
+                  error: result.failure.message,
+                })
+                return
+              }
+              yield* writeSnapshot({
+                credentialID: row.id,
+                catalog: null,
+                credit: result.success,
+                error: null,
+              })
+            }),
+          { concurrency: 4, discard: true },
+        )
+      }),
       report: Effect.fn("CredentialQuota.report")(function* () {
         const now = yield* Clock.currentTimeMillis
         const rows = yield* db.select().from(CredentialTable).all().pipe(Effect.orDie)
@@ -306,18 +596,28 @@ const layer = Layer.effect(
         const providers = []
         for (const [integrationID, group] of [...byIntegration].sort((a, b) => a[0].localeCompare(b[0]))) {
           const state = yield* stateFor(group, now)
+          const ids = group.map((row) => row.id)
           const models = yield* db
             .select()
             .from(CredentialUsageTable)
             .where(
               and(
                 eq(CredentialUsageTable.month, CredentialQuotaRouter.month(now)),
-                inArray(
-                  CredentialUsageTable.credential_id,
-                  group.map((row) => row.id),
-                ),
+                inArray(CredentialUsageTable.credential_id, ids),
               ),
             )
+            .all()
+            .pipe(Effect.orDie)
+          const windows = yield* db
+            .select()
+            .from(CredentialWindowTable)
+            .where(inArray(CredentialWindowTable.credential_id, ids))
+            .all()
+            .pipe(Effect.orDie)
+          const snapshots = yield* db
+            .select()
+            .from(CredentialSnapshotTable)
+            .where(inArray(CredentialSnapshotTable.credential_id, ids))
             .all()
             .pipe(Effect.orDie)
           const accounts = CredentialQuotaRouter.order(candidates(group)).flatMap((account) => {
@@ -325,6 +625,16 @@ const layer = Layer.effect(
             const used = state.usage.get(account.id) ?? { requests: 0, tokens: 0, cost: 0 }
             const until = state.blockedUntil.get(account.id)
             const remaining = limit === undefined ? undefined : Math.max(0, limit.amount - usedAmount(limit.metric, used))
+            const accountWindows = windows.filter((row) => row.credential_id === account.id)
+            const latest = accountWindows.reduce<QuotaWindow | undefined>((current, row) => {
+              const window = quotaWindow(row)
+              if (!window) return current
+              if (!current || window.observedAt > current.observedAt) return window
+              return current
+            }, undefined)
+            const snapshot = snapshots.find((row) => row.credential_id === account.id)
+            const catalog = snapshot?.catalog ?? undefined
+            const credit = creditFrom(snapshot)
             return [
               {
                 id: Credential.ID.make(account.id),
@@ -333,15 +643,16 @@ const layer = Layer.effect(
                 used,
                 ...(remaining === undefined ? {} : { remaining }),
                 ...(until !== undefined && until > now ? { blockedUntil: until } : {}),
-                models: models
-                  .filter((row) => row.credential_id === account.id)
-                  .map((row) => ({
-                    providerID: row.provider_id,
-                    modelID: row.model_id,
-                    requests: row.requests,
-                    tokens: row.tokens,
-                    cost: row.cost,
-                  })),
+                ...(latest ? { window: latest } : {}),
+                ...(catalog ? { catalog } : {}),
+                ...(credit ? { credit } : {}),
+                ...(snapshot?.error ? { snapshotError: snapshot.error } : {}),
+                models: accountModels(
+                  integrationID,
+                  models.filter((row) => row.credential_id === account.id),
+                  accountWindows,
+                  catalog ?? [],
+                ),
               },
             ]
           })

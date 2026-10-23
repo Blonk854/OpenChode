@@ -2,7 +2,7 @@ import { describe, expect } from "bun:test"
 import { Deferred, Effect, Fiber, Layer, Ref, Stream } from "effect"
 import { Headers, HttpClientError, HttpClientRequest, HttpClientResponse } from "effect/http"
 import { Socket } from "effect/socket"
-import { LLM, AIError, HttpContext, InvalidProviderOutputError, TransportError, isRetryable } from "../src/index.js"
+import { LLM, AIError, HttpContext, InvalidProviderOutputError, RateLimitObservation, TransportError, isRetryable } from "../src/index.js"
 import {
   LLMClient,
   RequestExecutor,
@@ -527,6 +527,66 @@ describe("RequestExecutor", () => {
             "x-ratelimit-remaining-tokens": "29900",
             "x-ratelimit-reset-requests": "1s",
             "x-ratelimit-reset-tokens": "10s",
+          },
+        }),
+      ),
+    ),
+  )
+
+  it.effect("remembers rate-limit headers from a successful response", () =>
+    Effect.gen(function* () {
+      const slot = { current: undefined }
+      const executor = yield* RequestExecutor.Service
+      const response = yield* executor.execute(request).pipe(Effect.provideService(RateLimitObservation, slot))
+
+      expect(response.status).toBe(200)
+      expect(slot.current).toEqual({
+        limit: { requests: "60" },
+        remaining: { requests: "59" },
+        reset: { requests: "6s" },
+      })
+      expect(JSON.stringify(slot.current)).not.toContain("secret")
+    }).pipe(
+      Effect.provide(
+        fixedResponse("ok", {
+          status: 200,
+          headers: {
+            "x-ratelimit-limit-requests": "60",
+            "x-ratelimit-remaining-requests": "59",
+            "x-ratelimit-reset-requests": "6s",
+            authorization: "Bearer secret",
+          },
+        }),
+      ),
+    ),
+  )
+
+  it.effect("remembers rate-limit headers from a failed response", () =>
+    Effect.gen(function* () {
+      const slot = { current: undefined }
+      const executor = yield* RequestExecutor.Service
+      const error = yield* executor
+        .execute(request)
+        .pipe(Effect.flip, Effect.provideService(RateLimitObservation, slot))
+
+      expectAIError(error)
+      expect(slot.current).toEqual({
+        retryAfterMs: 0,
+        limit: { requests: "60" },
+        remaining: { requests: "0" },
+        reset: { requests: "6s" },
+      })
+      expect(JSON.stringify(slot.current)).not.toContain("secret")
+    }).pipe(
+      Effect.provide(
+        fixedResponse("rate limited", {
+          status: 429,
+          headers: {
+            "retry-after-ms": "0",
+            "x-ratelimit-limit-requests": "60",
+            "x-ratelimit-remaining-requests": "0",
+            "x-ratelimit-reset-requests": "6s",
+            "x-api-key": "secret",
           },
         }),
       ),

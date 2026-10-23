@@ -60,6 +60,14 @@ export const CredentialHandler = HttpApiBuilder.group(Api, "server.credential", 
       }),
     )
     .handle(
+      "credential.refresh",
+      Effect.fn(function* () {
+        const quota = yield* CredentialQuota.Service
+        yield* quota.refresh()
+        return yield* quota.report()
+      }),
+    )
+    .handle(
       "credential.limit",
       Effect.fn(function* (ctx) {
         const quota = yield* CredentialQuota.Service

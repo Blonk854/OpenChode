@@ -83,6 +83,18 @@ export const CredentialGroup = HttpApiGroup.make("server.credential")
     ),
   )
   .add(
+    HttpApiEndpoint.post("credential.refresh", "/api/usage/refresh", {
+      success: CredentialQuota.Report,
+    }).annotateMerge(
+      OpenApi.annotations({
+        identifier: "credential.refresh",
+        summary: "Refresh provider usage",
+        description:
+          "Reads Google model limits and OpenRouter credit for stored API keys, then returns the usage report. The payload has labels and totals only.",
+      }),
+    ),
+  )
+  .add(
     HttpApiEndpoint.put("credential.limit", "/api/credential/:credentialID/limit", {
       params: { credentialID: Credential.ID },
       payload: Schema.Struct({ limit: Schema.NullOr(CredentialQuota.Limit) }),

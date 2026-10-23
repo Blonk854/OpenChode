@@ -164,6 +164,7 @@ import type {
   CredentialRemoveInput,
   CredentialRemoveOutput,
   CredentialUsageOutput,
+  CredentialRefreshOutput,
   CredentialLimitInput,
   CredentialLimitOutput,
   CredentialUnblockInput,
@@ -1536,6 +1537,17 @@ export function make(options: ClientOptions) {
       usage: (requestOptions?: RequestOptions) =>
         request<CredentialUsageOutput>(
           { method: "GET", path: `/api/usage`, successStatus: 200, declaredStatuses: [400, 401], empty: false },
+          requestOptions,
+        ),
+      refresh: (requestOptions?: RequestOptions) =>
+        request<CredentialRefreshOutput>(
+          {
+            method: "POST",
+            path: `/api/usage/refresh`,
+            successStatus: 200,
+            declaredStatuses: [400, 401],
+            empty: false,
+          },
           requestOptions,
         ),
       limit: (input: CredentialLimitInput, requestOptions?: RequestOptions) =>

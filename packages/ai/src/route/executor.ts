@@ -10,6 +10,7 @@ import {
 import { HttpContext, HttpRateLimitDetails, AIError, TransportError } from "../schema/index.js"
 import { classifyProviderFailure, providerErrorMessage } from "../provider-error.js"
 import { headerDetails, responseHttp, Service, type HttpMiddleware, type Interface } from "./executor-service.js"
+import { RateLimitObservation } from "./rate-limit-observation.js"
 
 export { responseHttp, Service } from "./executor-service.js"
 export type { HttpHandler, HttpMiddleware, Interface } from "./executor-service.js"
@@ -89,8 +90,17 @@ const providerMessage = (status: number, body: string | void) => {
   return `${fallback}: ${text.length > MAX_BODY_CHARS ? `${text.slice(0, MAX_BODY_CHARS)}…` : text}`
 }
 
+const rememberRateLimit = (headers: Record<string, string>) =>
+  Effect.gen(function* () {
+    const details = rateLimitDetails(headers, retryAfterMs(headers))
+    if (!details) return
+    const slot = yield* RateLimitObservation
+    slot.current = details
+  })
+
 const statusError = (response: HttpClientResponse.HttpClientResponse) =>
   Effect.gen(function* () {
+    yield* rememberRateLimit(normalizedHeaders(response.headers))
     if (response.status < 400) return response
     const result = yield* response.text.pipe(Effect.result)
     return yield* httpFailure({

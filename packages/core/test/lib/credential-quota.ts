@@ -9,5 +9,7 @@ export const passthrough = Layer.mock(CredentialQuota.Service, {
   clearBlock: () => Effect.void,
   setLimit: () => Effect.void,
   record: () => Effect.void,
+  observe: () => Effect.void,
+  refresh: () => Effect.void,
   report: () => Effect.succeed({ providers: [] }),
 })

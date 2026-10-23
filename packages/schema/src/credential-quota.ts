@@ -39,6 +39,29 @@ export const Usage = Schema.Struct({
   cost: Schema.Finite,
 }).annotate({ identifier: "CredentialQuota.Usage" })
 
+export interface Window extends Schema.Schema.Type<typeof Window> {}
+export const Window = Schema.Struct({
+  limit: optional(Schema.Record(Schema.String, Schema.String)),
+  remaining: optional(Schema.Record(Schema.String, Schema.String)),
+  reset: optional(Schema.Record(Schema.String, Schema.String)),
+  observedAt: Schema.Finite,
+}).annotate({ identifier: "CredentialQuota.Window" })
+
+export interface CatalogModel extends Schema.Schema.Type<typeof CatalogModel> {}
+export const CatalogModel = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  inputTokenLimit: optional(NonNegativeInt),
+  outputTokenLimit: optional(NonNegativeInt),
+}).annotate({ identifier: "CredentialQuota.CatalogModel" })
+
+export interface Credit extends Schema.Schema.Type<typeof Credit> {}
+export const Credit = Schema.Struct({
+  limit: optional(Schema.Finite),
+  remaining: optional(Schema.Finite),
+  usage: optional(Schema.Finite),
+}).annotate({ identifier: "CredentialQuota.Credit" })
+
 export interface ModelUsage extends Schema.Schema.Type<typeof ModelUsage> {}
 export const ModelUsage = Schema.Struct({
   providerID: Schema.String,
@@ -46,6 +69,9 @@ export const ModelUsage = Schema.Struct({
   requests: NonNegativeInt,
   tokens: NonNegativeInt,
   cost: Schema.Finite,
+  window: optional(Window),
+  inputTokenLimit: optional(NonNegativeInt),
+  outputTokenLimit: optional(NonNegativeInt),
 }).annotate({ identifier: "CredentialQuota.ModelUsage" })
 
 export interface Account extends Schema.Schema.Type<typeof Account> {}
@@ -56,6 +82,10 @@ export const Account = Schema.Struct({
   used: Usage,
   remaining: optional(Schema.Finite),
   blockedUntil: optional(Schema.Finite),
+  window: optional(Window),
+  catalog: optional(Schema.Array(CatalogModel)),
+  credit: optional(Credit),
+  snapshotError: optional(Schema.String),
   models: Schema.Array(ModelUsage),
 }).annotate({ identifier: "CredentialQuota.Account" })
 

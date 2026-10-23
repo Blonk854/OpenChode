@@ -28,6 +28,7 @@ import { SessionUsage } from "../usage.js"
 import { SessionRunnerModel } from "./model.js"
 import { createLLMEventPublisher } from "./publish-llm-event.js"
 import { SessionRunnerRetry } from "./retry.js"
+import { observeWindow } from "../../credential/observe-window.js"
 
 export type Outcome = Data.TaggedEnum<{
   Completed: { readonly needsContinuation: boolean }
@@ -64,6 +65,11 @@ interface Input {
     readonly retryAfterMs?: number
   }) => Effect.Effect<boolean>
   readonly recordUsage: (usage: SessionUsage.Recorded, succeeded: boolean) => Effect.Effect<void>
+  readonly recordWindow: (details: {
+    readonly limit?: Record<string, string>
+    readonly remaining?: Record<string, string>
+    readonly reset?: Record<string, string>
+  }) => Effect.Effect<void>
   readonly recoverContinuation: boolean
   /** The runner owns compaction policy; the attempt invokes it only before durable output. */
   readonly recoverOverflow: Effect.Effect<boolean>
@@ -114,9 +120,10 @@ export const make = Effect.gen(function* () {
     // A local execution starts only after its Tool.Called publication completes.
     let overflowFailure: ProviderErrorEvent | undefined
     // Read to the end, not just the finish event, so the next request can reuse this response.
-    const providerStream = llm.stream(input.prepared.request, input.prepared.options).pipe(
-      Stream.runForEach((event) =>
-        Effect.gen(function* () {
+    const providerStream = observeWindow(
+      llm.stream(input.prepared.request, input.prepared.options).pipe(
+        Stream.runForEach((event) =>
+          Effect.gen(function* () {
           if (overflowFailure || publisher.hasProviderError()) return
           // Wait here, where cancellation still works, rather than inside the uninterruptible publish.
           if (!publisher.hasStarted()) yield* Fiber.join(pendingStartSnapshot)
@@ -145,7 +152,9 @@ export const make = Effect.gen(function* () {
         }),
       ),
       Effect.ensuring(publisher.flush()),
-    )
+    ),
+    input.recordWindow,
+  )
 
     // Keep the final tool and Step events uninterruptible, even when the work itself is cancelled.
     return yield* Effect.uninterruptibleMask((restore) =>
