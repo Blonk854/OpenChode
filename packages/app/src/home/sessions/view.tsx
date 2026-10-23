@@ -11,6 +11,7 @@ import { IconButton } from "@opencode/ui/icon-button"
 import { Menu } from "@opencode/ui/menu"
 import { Tooltip } from "@opencode/ui/tooltip"
 import { useLanguage } from "@/runtime/i18n/language"
+import { ChodeIntro } from "@/brand/intro"
 import { ServerConnection } from "@/runtime/server/registry"
 import { SessionTabAvatarView } from "@/shell/layout/session-tab-avatar"
 import { sessionLabel } from "@/session/title"
@@ -888,6 +889,7 @@ function HomeSessionProjectName(props: { name: string; search?: boolean; trailin
 function HomeSessionsEmpty(props: { onNewSession?: () => void; language: ReturnType<typeof useLanguage> }) {
   return (
     <div class="flex min-h-full flex-col items-center gap-4 px-6 pt-[52px] text-center">
+      <ChodeIntro class="mb-2 block w-full max-w-[220px]" />
       <div
         class={`
           shrink-0 text-[13px] leading-text-compact tracking-[-0.04px]

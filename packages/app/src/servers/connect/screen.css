@@ -18,9 +18,16 @@
   }
 
   .server-connect-brand {
-    width: 160px;
+    width: min(100%, 220px);
     margin-inline: auto;
     margin-block-end: 16px;
+  }
+
+  .server-connect-brand video {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 16px;
   }
 
   header {

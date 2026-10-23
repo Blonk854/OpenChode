@@ -9,7 +9,8 @@
     "./desktop-menu": "./src/shell/commands/desktop-menu.ts",
     "./i18n/desktop-native": "./src/runtime/i18n/desktop-native.ts",
     "./vite": "./vite.js",
-    "./index.css": "./src/index.css"
+    "./index.css": "./src/index.css",
+    "./intro": "./src/brand/intro.tsx"
   },
   "scripts": {
     "typecheck": "tsc -b",
