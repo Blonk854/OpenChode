@@ -3,7 +3,7 @@ import en from "./en"
 type Keys = keyof typeof en
 
 export const dict = {
-  "desktop.menu.app": "OpenCode",
+  "desktop.menu.app": "OpenChode",
   "desktop.menu.file": "ফাইল",
   "desktop.menu.edit": "সম্পাদনা করুন",
   "desktop.menu.view": "দেখুন",
@@ -42,18 +42,18 @@ export const dict = {
   "desktop.menu.nextProject": "পরবর্তী প্রকল্প",
   "desktop.menu.minimize": "ছোট করুন",
   "desktop.menu.maximize": "সর্বাধিক করুন",
-  "desktop.menu.documentation": "OpenCode ডকুমেন্টেশন",
+  "desktop.menu.documentation": "OpenChode ডকুমেন্টেশন",
   "desktop.menu.supportForum": "সমর্থন ফোরাম",
   "desktop.menu.shareFeedback": "মতামত শেয়ার করুন",
   "desktop.menu.reportBug": "একটি বাগ রিপোর্ট করুন",
-  "desktop.menu.ariaLabel": "OpenCode মেনু",
+  "desktop.menu.ariaLabel": "OpenChode মেনু",
   "desktop.recovery.action.relaunch": "পুনরায় চালু করুন",
   "desktop.recovery.action.exportLogs": "রপ্তানি লগ",
   "desktop.recovery.action.keepWaiting": "অপেক্ষায় থাকুন",
   "desktop.recovery.action.quit": "প্রস্থান করুন",
-  "desktop.recovery.loadFailed": "OpenCode লোড হতে ব্যর্থ হয়েছে৷",
-  "desktop.recovery.terminated": "OpenCode উইন্ডো অপ্রত্যাশিতভাবে বন্ধ হয়ে গেছে",
-  "desktop.recovery.unresponsive": "OpenCode সাড়া দিচ্ছে না",
+  "desktop.recovery.loadFailed": "OpenChode লোড হতে ব্যর্থ হয়েছে৷",
+  "desktop.recovery.terminated": "OpenChode উইন্ডো অপ্রত্যাশিতভাবে বন্ধ হয়ে গেছে",
+  "desktop.recovery.unresponsive": "OpenChode সাড়া দিচ্ছে না",
   "desktop.recovery.unresponsive.detail":
     "আপনি অ্যাপটি পুনরায় চালু করতে পারেন, লগগুলি খুলতে পারেন বা অপেক্ষা করতে পারেন৷",
   "desktop.recovery.loadFailed.detail": "উইন্ডো: {{window}}\nURL: {{url}}\nত্রুটি: {{code}} {{description}}",

@@ -3,7 +3,7 @@ import en from "./en"
 type Keys = keyof typeof en
 
 export const dict = {
-  "desktop.menu.app": "OpenCode",
+  "desktop.menu.app": "OpenChode",
   "desktop.menu.file": "文件",
   "desktop.menu.edit": "编辑",
   "desktop.menu.view": "视图",
@@ -42,19 +42,19 @@ export const dict = {
   "desktop.menu.nextProject": "下一个项目",
   "desktop.menu.minimize": "最小化",
   "desktop.menu.maximize": "最大化",
-  "desktop.menu.documentation": "OpenCode 文档",
+  "desktop.menu.documentation": "OpenChode 文档",
   "desktop.menu.supportForum": "支持论坛",
   "desktop.menu.shareFeedback": "提供反馈",
   "desktop.menu.reportBug": "报告错误",
-  "desktop.menu.ariaLabel": "OpenCode 菜单",
+  "desktop.menu.ariaLabel": "OpenChode 菜单",
 
   "desktop.recovery.action.relaunch": "重新启动",
   "desktop.recovery.action.exportLogs": "导出日志",
   "desktop.recovery.action.keepWaiting": "继续等待",
   "desktop.recovery.action.quit": "退出",
-  "desktop.recovery.loadFailed": "OpenCode 加载失败",
-  "desktop.recovery.terminated": "OpenCode 窗口意外终止",
-  "desktop.recovery.unresponsive": "OpenCode 未响应",
+  "desktop.recovery.loadFailed": "OpenChode 加载失败",
+  "desktop.recovery.terminated": "OpenChode 窗口意外终止",
+  "desktop.recovery.unresponsive": "OpenChode 未响应",
   "desktop.recovery.unresponsive.detail": "你可以重新启动应用、打开日志或继续等待。",
   "desktop.recovery.loadFailed.detail": "窗口：{{window}}\nURL：{{url}}\n错误：{{code}} {{description}}",
   "desktop.recovery.terminated.detail": "窗口：{{window}}\n原因：{{reason}}\n代码：{{code}}",

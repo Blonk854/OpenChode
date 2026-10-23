@@ -3,7 +3,7 @@ import en from "./en"
 type Keys = keyof typeof en
 
 export const dict = {
-  "desktop.menu.app": "OpenCode",
+  "desktop.menu.app": "OpenChode",
   "desktop.menu.file": "Dosya",
   "desktop.menu.edit": "Düzen",
   "desktop.menu.view": "Görünüm",
@@ -43,11 +43,11 @@ export const dict = {
   "desktop.menu.nextProject": "Sonraki proje",
   "desktop.menu.minimize": "Simge durumuna küçült",
   "desktop.menu.maximize": "Ekranı kapla",
-  "desktop.menu.documentation": "OpenCode belgeleri",
+  "desktop.menu.documentation": "OpenChode belgeleri",
   "desktop.menu.supportForum": "Destek forumu",
   "desktop.menu.shareFeedback": "Geri bildirim paylaş",
   "desktop.menu.reportBug": "Hata bildir",
-  "desktop.menu.ariaLabel": "OpenCode menüsü",
+  "desktop.menu.ariaLabel": "OpenChode menüsü",
 
   "desktop.cli.installed.title": "CLI yüklendi",
   "desktop.cli.installed.message":
@@ -59,9 +59,9 @@ export const dict = {
   "desktop.recovery.action.exportLogs": "Günlükleri dışa aktar",
   "desktop.recovery.action.keepWaiting": "Beklemeye devam et",
   "desktop.recovery.action.quit": "Çık",
-  "desktop.recovery.loadFailed": "OpenCode yüklenemedi",
-  "desktop.recovery.terminated": "OpenCode penceresi beklenmedik şekilde sonlandırıldı",
-  "desktop.recovery.unresponsive": "OpenCode yanıt vermiyor",
+  "desktop.recovery.loadFailed": "OpenChode yüklenemedi",
+  "desktop.recovery.terminated": "OpenChode penceresi beklenmedik şekilde sonlandırıldı",
+  "desktop.recovery.unresponsive": "OpenChode yanıt vermiyor",
   "desktop.recovery.unresponsive.detail":
     "Uygulamayı yeniden başlatabilir, günlükleri açabilir veya beklemeye devam edebilirsiniz.",
   "desktop.recovery.loadFailed.detail": "Pencere: {{window}}\nURL: {{url}}\nHata: {{code}} {{description}}",

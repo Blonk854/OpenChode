@@ -3,7 +3,7 @@ import en from "./en"
 type Keys = keyof typeof en
 
 export const dict = {
-  "desktop.menu.app": "OpenCode",
+  "desktop.menu.app": "OpenChode",
   "desktop.menu.file": "ཡིག༌སྣོད",
   "desktop.menu.edit": "ཞུན༌དག",
   "desktop.menu.view": "བསམ༌འཆར",
@@ -43,11 +43,11 @@ export const dict = {
   "desktop.menu.nextProject": "ལས་གཞི་རྗེས་མ།",
   "desktop.menu.minimize": "ཉུང་ཉུང་བཟོ།",
   "desktop.menu.maximize": "ཆེར་བསྐྱེད་འབད།",
-  "desktop.menu.documentation": "OpenCode ཡིག་ཆ།",
+  "desktop.menu.documentation": "OpenChode ཡིག་ཆ།",
   "desktop.menu.supportForum": "རྒྱབ་སྐྱོར་གླེང་སྟེགས།",
   "desktop.menu.shareFeedback": "བསམ་འཆར་བརྗེ་རེས།",
   "desktop.menu.reportBug": "རྐྱེན་ཅིག་སྙན་ཞུ་འབད།",
-  "desktop.menu.ariaLabel": "OpenCode དཀར་ཆག།",
+  "desktop.menu.ariaLabel": "OpenChode དཀར་ཆག།",
   "desktop.cli.installed.title": "CLI གཞི་བཙུགས་འབད་ཡོདཔ།",
   "desktop.cli.installed.message":
     "CLI འདི་ {{path}} ལུ་གཞི་བཙུགས་འབད་ཡི།\n\n'opencode2' བརྡ་བཀོད་ལག་ལེན་འཐབ་ནིའི་དོན་ལུ་ ཊར་མི་ནཱལ་ལོག་འགོ་བཙུགས།",
@@ -57,9 +57,9 @@ export const dict = {
   "desktop.recovery.action.exportLogs": "ཕྱིར་འདྲེན་དྲན་དེབ་ཚུ།",
   "desktop.recovery.action.keepWaiting": "བསྒུག་སྡོད།",
   "desktop.recovery.action.quit": "བཞག༌ནི",
-  "desktop.recovery.loadFailed": "OpenCode མངོན་གསལ་འབད་ནི་ལུ་འཐུས་ཤོར་བྱུང་ཡོདཔ།",
-  "desktop.recovery.terminated": "OpenCode སྒོ་སྒྲིག་འདི་ རེ་བ་མེད་པར་ མཇུག་བསྡུ་ཡོདཔ།",
-  "desktop.recovery.unresponsive": "OpenCodeགིས་ ལན་གསལ་འབད་མི་བཏུབ།",
+  "desktop.recovery.loadFailed": "OpenChode མངོན་གསལ་འབད་ནི་ལུ་འཐུས་ཤོར་བྱུང་ཡོདཔ།",
+  "desktop.recovery.terminated": "OpenChode སྒོ་སྒྲིག་འདི་ རེ་བ་མེད་པར་ མཇུག་བསྡུ་ཡོདཔ།",
+  "desktop.recovery.unresponsive": "OpenChodeགིས་ ལན་གསལ་འབད་མི་བཏུབ།",
   "desktop.recovery.unresponsive.detail":
     "ཁྱོད་ཀྱིས་གློག་རིམ་འདི་ལོག་སྟེ་འགོ་བཙུགས་ཚུགས། དྲན་ཐོ་ཚུ་ཁ་ཕྱེ་ཚུགས། ཡང་ན་བསྒུག་སྡོད་ཚུགས།",
   "desktop.recovery.loadFailed.detail": "སྒོ་སྒྲིག་: {{window}}\nURL: {{url}}\nའཛོལ་བ་: {{code}} {{description}}",

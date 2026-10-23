@@ -3,7 +3,7 @@ import en from "./en"
 type Keys = keyof typeof en
 
 export const dict = {
-  "desktop.menu.app": "OpenCode",
+  "desktop.menu.app": "OpenChode",
   "desktop.menu.file": "फाइल",
   "desktop.menu.edit": "सम्पादन गर्नुहोस्",
   "desktop.menu.view": "हेर्नुहोस्",
@@ -42,18 +42,18 @@ export const dict = {
   "desktop.menu.nextProject": "अर्को परियोजना",
   "desktop.menu.minimize": "न्यूनतम गर्नुहोस्",
   "desktop.menu.maximize": "अधिकतम गर्नुहोस्",
-  "desktop.menu.documentation": "OpenCode कागजात",
+  "desktop.menu.documentation": "OpenChode कागजात",
   "desktop.menu.supportForum": "समर्थन फोरम",
   "desktop.menu.shareFeedback": "प्रतिक्रिया साझा गर्नुहोस्",
   "desktop.menu.reportBug": "बग रिपोर्ट गर्नुहोस्",
-  "desktop.menu.ariaLabel": "OpenCode मेनु",
+  "desktop.menu.ariaLabel": "OpenChode मेनु",
   "desktop.recovery.action.relaunch": "पुन: सुरु गर्नुहोस्",
   "desktop.recovery.action.exportLogs": "लग निर्यात गर्नुहोस्",
   "desktop.recovery.action.keepWaiting": "प्रतीक्षा गरिरहनुहोस्",
   "desktop.recovery.action.quit": "छोड्नुहोस्",
-  "desktop.recovery.loadFailed": "OpenCode लोड हुन सकेन",
-  "desktop.recovery.terminated": "OpenCode विन्डो अप्रत्याशित रूपमा समाप्त भयो",
-  "desktop.recovery.unresponsive": "OpenCode ले प्रतिक्रिया दिइरहेको छैन",
+  "desktop.recovery.loadFailed": "OpenChode लोड हुन सकेन",
+  "desktop.recovery.terminated": "OpenChode विन्डो अप्रत्याशित रूपमा समाप्त भयो",
+  "desktop.recovery.unresponsive": "OpenChode ले प्रतिक्रिया दिइरहेको छैन",
   "desktop.recovery.unresponsive.detail":
     "तपाईं एप पुन: लन्च गर्न सक्नुहुन्छ, लगहरू खोल्न सक्नुहुन्छ वा पर्खन सक्नुहुन्छ।",
   "desktop.recovery.loadFailed.detail": "विन्डो: {{window}}\nURL: {{url}}\nत्रुटि: {{code}} {{description}}",

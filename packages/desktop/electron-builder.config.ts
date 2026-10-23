@@ -177,7 +177,7 @@ const getBase = (appId: string): Configuration => {
       target: ["dmg", "zip"],
     },
     protocols: {
-      name: "OpenCode",
+      name: "OpenChode",
       schemes: ["opencode"],
     },
     win: {
@@ -232,7 +232,7 @@ export function getConfig() {
         ...base,
         appId,
         productName: "OpenCode Beta",
-        protocols: { name: "OpenCode Beta", schemes: ["opencode"] },
+        protocols: { name: "OpenChode Beta", schemes: ["opencode"] },
         publish: {
           provider: "generic",
           url: "https://opencode.ai/update/api/beta/desktop/opencode/",
@@ -248,7 +248,7 @@ export function getConfig() {
         ...base,
         appId,
         productName: "OpenCode",
-        protocols: { name: "OpenCode", schemes: ["opencode"] },
+        protocols: { name: "OpenChode", schemes: ["opencode"] },
         publish: {
           provider: "generic",
           url: "https://opencode.ai/update/api/latest/desktop/opencode/",
